@@ -2,3 +2,5 @@ backend/.venv
 backend/budgetbox_project/.env
 venv/
 .env
+.env.local
+.env.*.local
