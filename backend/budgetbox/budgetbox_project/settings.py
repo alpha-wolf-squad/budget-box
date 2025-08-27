@@ -49,7 +49,7 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
-ROOT_URLCONF = 'budgetbox.urls'
+ROOT_URLCONF = 'budgetbox_project.urls'
 
 TEMPLATES = [
     {
@@ -66,7 +66,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'budgetbox.wsgi.application'
+WSGI_APPLICATION = 'budgetbox_project.wsgi.application'
 
 
 # Database
