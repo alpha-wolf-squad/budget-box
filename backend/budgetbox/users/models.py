@@ -19,11 +19,11 @@ from django.contrib.auth.models import AbstractUser, BaseUserManager
 #         return self.create_user(email, password, **extra_fields)
     
 class BudgetBoxUser(AbstractUser):
-    budget_id = models.CharField(max_length=255, unique=False, null=True, blank=True)
-    # username = None
-    # email = models.EmailField(unique=True)
-    # is_active = models.BooleanField(default=True)
-    # is_staff = models.BooleanField(default=False)
+    budget_id = models.CharField(max_length=255, unique=False, null=False, blank=False)
+    username = None
+    email = models.EmailField(unique=True)
+    is_active = models.BooleanField(default=True)
+    is_staff = models.BooleanField(default=False)
 
     # Clerk integration
     clerk_user_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
