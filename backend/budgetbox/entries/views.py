@@ -45,3 +45,10 @@ class GetEntries(APIView):
         entry = EntryFields.objects.create(user=user, **entry_data)
 
         return Response({"message": "Entry created"}, status=s.HTTP_201_CREATED)
+    
+    @clerk_auth_required
+    def delete(self, request):
+        clerk_user_id = request.clerk_user_id
+        user = User.objects.filter.delete(
+            clerk_user_id=clerk_user_id
+        )

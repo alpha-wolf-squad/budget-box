@@ -25,6 +25,9 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY")
+CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
+CLERK_ISSUER = os.getenv("CLERK_ISSUER")
+CLERK_JWKS_URLS = os.getenv("CLERK_JWKS_URL")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG")
