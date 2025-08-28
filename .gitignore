@@ -7,3 +7,4 @@ frontend/node_modules
 venv
 backend/budgetbox/budgetbox_project/.env
 backend/budgetbox/budgetbox_project/.env
+backend/budgetbox/budgetbox_project/.env
