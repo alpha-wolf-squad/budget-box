@@ -17,8 +17,13 @@ class GetEntries(APIView):
 
     @clerk_auth_required
     def get(self, request):
-        print("hello from backend")
-        # clerk_user_id = request.clerk_user_id
+        print("Hello from backend")
+        # NOTE: For Michael and Rejino, feel free to experiment with the code now. Decorator now works.
+        clerk_user_id = request.clerk_user_id
+
+        return Response(
+            {"message": f"Hello from backend, clerk_user_id: {clerk_user_id}"}
+        )
         #
         # user, created = User.objects.get_or_create(
         #     clerk_user_id=clerk_user_id,
@@ -53,4 +58,3 @@ class GetEntries(APIView):
     def delete(self, request):
         clerk_user_id = request.clerk_user_id
         user = User.objects.filter.delete(clerk_user_id=clerk_user_id)
-
