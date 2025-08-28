@@ -24,12 +24,92 @@ export default function HomePage() {
         <SignInButton mode="modal">
           <button>Sign in</button>
         </SignInButton>
-        <h1>Welcome to budgetbox</h1>
+    <Container
+      maxWidth="md"
+      sx={{
+        position: "relative",
+        height: 300, // demo height
+        border: "1px solid #ccc",
+        padding: 2,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {/* Top-right login button */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+        }}
+      >
+        <Button variant="contained" color="primary">
+          Login/Register
+        </Button>
+      </Box>
+
+      {/* Welcome message */}
+      <Typography
+        variant="h4"
+        component="h1"
+        sx={{
+          textAlign: "center",
+          fontWeight: 600,
+        }}
+      >
+        Welcome to BudgetBox
+      </Typography>
+
+      {/* TODO: Budget Form */}
+      <BudgetForm/>
+    </Container>
       </SignedOut>
 
       <SignedIn>
         <UserButton />
-        {/* budget form here */}
+    <Container
+      maxWidth="md"
+      sx={{
+        position: "relative",
+        height: 300, // demo height
+        border: "1px solid #ccc",
+        padding: 2,
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {/* Top-right login button */}
+      <Box
+        sx={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+        }}
+      >
+        <Button variant="contained" color="primary">
+          Login/Register
+        </Button>
+      </Box>
+
+      {/* Welcome message */}
+      <Typography
+        variant="h4"
+        component="h1"
+        sx={{
+          textAlign: "center",
+          fontWeight: 600,
+        }}
+      >
+        Welcome to BudgetBox
+      </Typography>
+
+      {/* TODO: Budget Form */}
+      <BudgetForm/>
+    </Container>
       </SignedIn>
         </>
 
