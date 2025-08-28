@@ -1,12 +1,18 @@
 import './App.css'
 import HomePage from './features/HomePage'
+import { Route, Routes, Navigate } from 'react-router-dom'
+
+
+
 
 
 function App() {
 
+
+
   return (
     <>
-    <HomePage />      
+      <HomePage />
     </>
   )
 }

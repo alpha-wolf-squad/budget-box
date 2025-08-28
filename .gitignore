@@ -1,2 +1,9 @@
 backend/.venv
+.env
+.env.local
+.env.*.local
 backend/budgetbox_project/.env
+frontend/node_modules
+venv
+backend/budgetbox/budgetbox_project/.env
+backend/budgetbox/budgetbox_project/.env
