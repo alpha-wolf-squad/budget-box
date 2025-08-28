@@ -1,4 +1,5 @@
 import { Container, Button, Typography, Box } from "@mui/material";
+import BudgetForm from "./budgetform/BudgetForm";
 
 export default function HomePage() {
   return (
@@ -41,6 +42,7 @@ export default function HomePage() {
       </Typography>
 
       {/* TODO: Budget Form */}
+      <BudgetForm/>
     </Container>
   );
 }
