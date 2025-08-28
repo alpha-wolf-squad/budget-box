@@ -1,21 +1,24 @@
-import requests
 from functools import wraps
-from django.http import JsonResponse
-from django.conf import settings
+
+import requests
+from budgetbox_project.settings import CLERK_ISSUER, CLERK_JWKS_URLS, CLERK_SECRET_KEY
 from clerk_backend_api import Clerk
-from rest_framework.response import Response
-from rest_framework import status as s
-from jose import jwt, jwk
+from django.conf import settings
+from django.http import JsonResponse
+from jose import jwk, jwt
 from jwt import PyJWTError
-from budgetbox_project.settings import CLERK_SECRET_KEY, CLERK_ISSUER, CLERK_JWKS_URLS
+from rest_framework import status as s
+from rest_framework.response import Response
 
 # Initialize Clerk
-Clerk.api_key = settings.CLERK_SECRET_KEY
+# Clerk.api_key = settings.CLERK_SECRET_KEY
+
 
 def get_jwks():
     response = requests.get(CLERK_JWKS_URLS)
     response.raise_for_status()
     return response.json()
+
 
 def get_public_keys(kid):
     jwks = get_jwks()
@@ -23,6 +26,7 @@ def get_public_keys(kid):
         if key["kid"] == kid:
             return jwk.construct(key)
     raise ValueError("Invalid Token")
+
 
 def decode_token(token):
     try:
@@ -34,11 +38,12 @@ def decode_token(token):
             public_key.to_pem().decode("utf-8"),
             algorithms=["RS256"],
             audience="clerk",
-            issuer=CLERK_ISSUER
+            issuer=CLERK_ISSUER,
         )
         return payload
     except PyJWTError as e:
         raise ValueError(f"Token verification failed: {str(e)}")
+
 
 def clerk_auth_required(view_func):
     @wraps(view_func)
@@ -59,7 +64,10 @@ def clerk_auth_required(view_func):
             payload = decode_token(token)
             user_id = payload.get("sub")
             if not user_id:
-                return JsonResponse({"Error": "user_id not found in token."}, status=s.HTTP_404_NOT_FOUND)
+                return JsonResponse(
+                    {"Error": "user_id not found in token."},
+                    status=s.HTTP_404_NOT_FOUND,
+                )
             # Verify the session token with Clerk
             clerk_sdk = Clerk(bearer_auth=CLERK_SECRET_KEY)
             user_details = clerk_sdk.users.get(user_id=user_id)
@@ -67,7 +75,7 @@ def clerk_auth_required(view_func):
 
         except ValueError as e:
             return JsonResponse(
-                {"error": {str:e}},
+                {"error": {str: e}},
                 status=s.HTTP_401_UNAUTHORIZED,
             )
         return view_func(self, request, *args, **kwargs)
