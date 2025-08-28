@@ -1,0 +1,15 @@
+nav {
+    display: flex;
+    flex-direction: column;
+}
+
+h1 {
+    font-size: large;
+    font-weight: bold;
+}
+
+ul {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}

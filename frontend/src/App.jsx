@@ -3,6 +3,7 @@ import HomePage from './features/HomePage'
 import { Route, Routes, Navigate } from 'react-router-dom'
 import { useAuth } from '@clerk/clerk-react'
 import HeroPage from './features/HeroPage'
+import NavBar from './features/components/NavBar'
 
 const ProtectedRoute = ({ children }) => {
   const { isSignedIn, isLoaded } = useAuth();
@@ -25,6 +26,7 @@ function App() {
 
   return (
     <>
+    <NavBar />
     <Routes>
       <Route path='/home' element={<ProtectedRoute><HomePage /></ProtectedRoute>} />
       <Route path='/' element={ isSignedIn ? <Navigate to="/home" replace /> : <HeroPage /> }/>

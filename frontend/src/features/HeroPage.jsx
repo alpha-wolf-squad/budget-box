@@ -6,12 +6,12 @@ const HeroPage = () => {
   return (
     <>
         <div>
-        Hello from actual HomePage
+        Hello from the HeroPage
         </div>
         <header>
-        <SignedOut>
+        {/* <SignedOut>
         <SignInButton />
-        </SignedOut>
+        </SignedOut> */}
         <SignedIn>
         <UserButton />
         </SignedIn>
