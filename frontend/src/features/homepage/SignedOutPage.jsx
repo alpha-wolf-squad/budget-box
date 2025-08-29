@@ -33,6 +33,7 @@ export default function SignedOutPage() {
         >
           Welcome to BudgetBox
         </Typography>
+        {/* BUDGET PAGE IS HERE FOR DEVELOPMENT // SHOULD ONLY BE VISIBLE UPON LOGIN */}
         <BudgetPage />
       </SignedOut>
     </>
