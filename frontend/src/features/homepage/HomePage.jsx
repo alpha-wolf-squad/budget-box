@@ -1,12 +1,5 @@
-import {
-  SignedIn,
-  SignInButton,
-  useAuth,
-  UserButton,
-} from "@clerk/clerk-react";
-import { SignedOut } from "@clerk/clerk-react";
 import { Box, Button, Container, Typography } from "@mui/material";
-import BudgetForm from "../budgetform/BudgetForm";
+
 import SignedOutPage from "./SignedOutPage";
 import SignedInPage from "./SignedInPage";
 
@@ -19,13 +12,13 @@ export default function HomePage() {
       <Container
         maxWidth="md"
         sx={{
+          mt: 5,
           position: "relative",
-          height: 300, // demo height
+          height: "auto",
           border: "1px solid #ccc",
           padding: 2,
           display: "flex",
           flexDirection: "column",
-          alignItems: "center",
           justifyContent: "center",
         }}
       >
