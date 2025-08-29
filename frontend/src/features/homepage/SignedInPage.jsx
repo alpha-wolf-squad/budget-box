@@ -1,6 +1,6 @@
 import { SignedIn, UserButton } from "@clerk/clerk-react";
 import { Box, Button, Typography } from "@mui/material";
-import BudgetForm from "../budgetform/BudgetForm";
+import BudgetPage from "../budgetpage/BudgetPage";
 
 export default function SignedInPage() {
   return (
@@ -32,10 +32,9 @@ export default function SignedInPage() {
           Welcome to BudgetBox
         </Typography>
 
-        {/* TODO: Budget Form */}
-        <BudgetForm />
+        {/*  Budget Page */}
+        <BudgetPage />
       </SignedIn>
     </>
   );
 }
-
