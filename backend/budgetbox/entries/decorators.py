@@ -59,6 +59,7 @@ def clerk_auth_required(view_func):
             )
 
         token = auth_header.split(" ")[1]
+        print(token)
 
         try:
             payload = decode_token(token)
