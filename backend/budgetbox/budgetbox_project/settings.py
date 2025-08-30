@@ -26,9 +26,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.getenv("SECRET_KEY")
+# Clerk Keys
 CLERK_SECRET_KEY = os.getenv("CLERK_SECRET_KEY")
 CLERK_ISSUER = os.getenv("CLERK_ISSUER")
 CLERK_JWKS_URLS = os.getenv("CLERK_JWKS_URL")
+# Plaid Keys
+PLAID_SANDBOX_KEY = os.getenv("PLAID_SANDBOX_KEY")
+PLAID_CLIENT_ID = os.getenv("PLAID_CLIENT_ID")
 
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG")
@@ -46,7 +50,8 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "rest_framework",
-    "users",
+    "clerk_app",
+    "plaid_app",
     "entries",
     "corsheaders",
 ]
@@ -138,7 +143,7 @@ STATIC_URL = "static/"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-AUTH_USER_MODEL = "users.BudgetBoxUser"
+AUTH_USER_MODEL = "clerk_app.BudgetBoxUser"
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",  # Your React dev server
     "http://127.0.0.1:5173",
