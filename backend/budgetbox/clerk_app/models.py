@@ -29,8 +29,7 @@ class BudgetBoxUser(AbstractUser):
     clerk_user_id = models.CharField(max_length=255, unique=True, null=True, blank=True)
 
     # Plaid integration
-    # plaid_access_token = models.CharField(max_length=255, null=True, blank=True)
-    plaid_client_id = models.CharField(max_length=255, null=True, blank=True)
+    plaid_access_token = models.CharField(max_length=255, null=True, blank=True)
 
     # Additional useful fields
     # first_name = models.CharField(max_length=30, blank=True)

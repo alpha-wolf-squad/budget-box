@@ -6,7 +6,7 @@ from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .decorators import clerk_auth_required
+from budgetbox_project.decorators import clerk_auth_required
 from .models import EntryFields
 
 # Create your views here.
@@ -17,32 +17,26 @@ class GetEntries(APIView):
 
     @clerk_auth_required
     def get(self, request):
-        print("Hello from backend")
-        # NOTE: For Michael and Rejino, feel free to experiment with the code now. Decorator now works.
         clerk_user_id = request.clerk_user_id
-
-        return Response(
-            {"message": f"Hello from backend, clerk_user_id: {clerk_user_id}"}
+        
+        user, created = User.objects.get_or_create(
+            clerk_user_id=clerk_user_id,
+            defaults={'email': f'user_{clerk_user_id}@example.com'}
         )
-        #
-        # user, created = User.objects.get_or_create(
-        #     clerk_user_id=clerk_user_id,
-        #     defaults={'email': f'user_{clerk_user_id}@example.com'}
-        # )
-        #
-        # entries = EntryFields.objects.filter(user=user)
-        #
-        # entries_data = []
-        # for entry in entries:
-        #     entries_data.append({
-        #         "amount": entry.amount,
-        #         "description": entry.description,
-        #         "merchant_name": entry.merchant_name,
-        #         "category": entry.category,
-        #         "date_paid": entry.date_paid,
-        #     })
-        #
-        # return Response({"entries": entries_data})
+        
+        entries = EntryFields.objects.filter(user=user)
+        
+        entries_data = []
+        for entry in entries:
+            entries_data.append({
+                "amount": entry.amount,
+                "description": entry.description,
+                "merchant_name": entry.merchant_name,
+                "category": entry.category,
+                "date_paid": entry.date_paid,
+            })
+        
+        return Response({"entries": entries_data})
 
     @clerk_auth_required
     def post(self, request):
