@@ -27,9 +27,9 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx }) {
   };
 
 
-  const NAME_W = 220;        
-  const AMOUNT_W = 120;      
-  const RECURRENCE_W = 160;
+  const NAME_W = 100;        
+  const AMOUNT_W = 100;      
+  const RECURRENCE_W = 90;
 
   const handleSubmit = () => {
     const next = {};
@@ -47,7 +47,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx }) {
     onSubmit({
       id: crypto?.randomUUID?.() ?? String(Date.now()),
       name: name.trim(),
-      amount: -Math.abs(amtNum),     
+      amount: Math.abs(amtNum),     
       description: description.trim() || undefined,
       type: "expense",
       recurrence,
