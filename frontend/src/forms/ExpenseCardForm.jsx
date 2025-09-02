@@ -47,7 +47,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx }) {
     onSubmit({
       id: crypto?.randomUUID?.() ?? String(Date.now()),
       name: name.trim(),
-      amount: -Math.abs(amtNum),     
+      amount: Math.abs(amtNum),     
       description: description.trim() || undefined,
       type: "expense",
       recurrence,
