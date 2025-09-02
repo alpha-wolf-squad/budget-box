@@ -37,7 +37,7 @@ PLAID_CLIENT_ID = os.getenv("PLAID_CLIENT_ID")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv("DEBUG")
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS")
 
 
 # Application definition
