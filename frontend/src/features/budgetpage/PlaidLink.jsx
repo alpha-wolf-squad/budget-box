@@ -2,11 +2,12 @@ import { useCallback, useState, useEffect } from "react";
 import { usePlaidLink } from "react-plaid-link";
 import { useAuthenticatedApi } from "../../services/hooks.js";
 import { useUserPlaid } from "../../context/UserPlaidContext.jsx";
+import { Button, Box } from "@mui/material";
 
 const PlaidLinkButton = () => {
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(false);
-  const api = useAuthenticatedApi();
+  const {api} = useAuthenticatedApi();
   const { setPlaidTransactions } = useUserPlaid(); // <-- context
 
   const onSuccess = useCallback(
@@ -70,12 +71,13 @@ const PlaidLinkButton = () => {
   }, [token, ready, open]);
 
   return (
-    <button
-      onClick={handleCreateLinkToken}
-      disabled={loading || (!ready && token)}
-    >
-      {loading ? "Loading..." : "Connect a bank account"}
-    </button>
+      <Button
+        onClick={handleCreateLinkToken}
+        disabled={loading || (!ready && token)}
+        variant="contained"
+      >
+        {loading ? "Loading..." : "Connect a bank account"}
+      </Button>
   );
 };
 
