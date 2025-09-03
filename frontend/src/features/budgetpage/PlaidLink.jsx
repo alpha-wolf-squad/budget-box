@@ -1,40 +1,41 @@
 import { useCallback, useState, useEffect } from "react";
-
 import { usePlaidLink } from "react-plaid-link";
 import { useAuthenticatedApi } from "../../services/hooks.js";
+import { useUserPlaid } from "../../context/UserPlaidContext.jsx";
 
 const PlaidLinkButton = () => {
   const [token, setToken] = useState(null);
-  const [accessToken, setAccessToken] = useState(null);
-
+  const [loading, setLoading] = useState(false);
   const api = useAuthenticatedApi();
-  // get link_token from your server when component mounts
-  useEffect(() => {
-    const createLinkToken = async () => {
-      const response = await api.post(
-        "http://localhost:8000/api/plaid/create-link-token/",
-      );
-      const { link_token } = await response.data;
-      setToken(link_token);
-    };
-    createLinkToken();
-  }, []);
+  const { setPlaidTransactions } = useUserPlaid(); // <-- context
 
-  const onSuccess = useCallback((publicToken, metadata) => {
-    // send public_token to your server
-    // https://plaid.com/docs/api/tokens/#token-exchange-flow
-    const exchangePublicToken = async () => {
-      const response = await api.post(
-        "http://localhost:8000/api/plaid/exchange-public-token/",
-        { public_token: publicToken },
-      );
-      const { access_token } = await response.data;
-      setAccessToken(access_token);
-    };
-    exchangePublicToken();
-  }, []);
+  const onSuccess = useCallback(
+    (publicToken) => {
+      const exchangePublicToken = async () => {
+        try {
+          const response = await api.post(
+            "http://localhost:8000/api/plaid/exchange-public-token/",
+            { public_token: publicToken },
+          );
+          if (response.status === 200) {
+            // Step 2: Pull new transactions from Plaid and save to DB
+            const newTxResponse = await api.get(
+              "http://localhost:8000/api/plaid/get-transactions/",
+            );
 
-  console.log("accessToken", accessToken);
+            if (newTxResponse.status === 200) {
+              // Step 3: Refresh context state from DB
+              setPlaidTransactions(newTxResponse.data.transactions);
+            }
+          }
+        } catch (error) {
+          console.error("Error exchanging public token:", error);
+        }
+      };
+      exchangePublicToken();
+    },
+    [api, setPlaidTransactions],
+  );
 
   const { open, ready } = usePlaidLink({
     token,
@@ -43,9 +44,36 @@ const PlaidLinkButton = () => {
     // onExit
   });
 
+  //NOTE: User clicks "Connect a bank account".  This will create a link_token, and open the link modal.
+  const handleCreateLinkToken = async () => {
+    setLoading(true);
+    try {
+      const response = await api.post(
+        "http://localhost:8000/api/plaid/create-link-token/",
+      );
+      const { link_token } = await response.data;
+      setToken(link_token);
+    } catch (error) {
+      console.error("Error creating link token:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  //Our useEffect triggers once the link_token has been successfully created
+  useEffect(() => {
+    if (token && ready) {
+      console.log("creating link token");
+      open();
+    }
+  }, [token, ready, open]);
+
   return (
-    <button onClick={() => open()} disabled={!ready}>
-      Connect a bank account
+    <button
+      onClick={handleCreateLinkToken}
+      disabled={loading || (!ready && token)}
+    >
+      {loading ? "Loading..." : "Connect a bank account"}
     </button>
   );
 };
