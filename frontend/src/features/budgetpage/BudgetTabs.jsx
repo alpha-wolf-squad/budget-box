@@ -4,7 +4,7 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 import BudgetPage from './BudgetPage';
-import CurrentTransactionsPage from '../homepage/CurrentTransactionsPage';
+import CurrentTransactionsPage from './CurrentTransactionsPage';
 
 function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
