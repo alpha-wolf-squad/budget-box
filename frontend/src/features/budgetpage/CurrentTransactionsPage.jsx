@@ -8,9 +8,9 @@ import {
     Paper,
   } from "@mui/material";
   import { useMemo, useState } from "react";
-  import StreamCard from "../budgetpage/StreamCard.jsx";
-  import AddIncomeCard from "../budgetpage/AddIncomeCard.jsx";
-  import AddExpenseCard from "../budgetpage/AddExpenseCard.jsx";
+  import StreamCard from "./StreamCard.jsx";
+  import AddIncomeCard from "./AddIncomeCard.jsx";
+  import AddExpenseCard from "./AddExpenseCard.jsx";
   import ExpenseCardForm from "../../forms/ExpenseCardForm.jsx";
 
 
