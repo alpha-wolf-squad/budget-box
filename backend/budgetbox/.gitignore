@@ -1,0 +1,14 @@
+backend/.venv
+.env
+.env.local
+.env.*.local
+backend/budgetbox_project/.env
+frontend/node_modules
+venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+backend/budgetbox/budgetbox_project/.env
+backend/budgetbox/budgetbox_project/.env
+backend/budgetbox/budgetbox_project/.env
