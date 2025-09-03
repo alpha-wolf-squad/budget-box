@@ -30,7 +30,7 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx }) {
 
   const NAME_W = 100;
   const AMOUNT_W = 100;
-  const RECURRENCE_W = 100;
+  const RECURRENCE_W = 90;
 
   const handleSubmit = () => {
     const next = {};

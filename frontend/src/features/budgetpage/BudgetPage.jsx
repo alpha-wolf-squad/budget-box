@@ -96,6 +96,7 @@ const handleDeleteExpense = (id) => {
           bgcolor: "background.paper",
           border: "1px solid",
           borderColor: "divider",
+          textAlign: "center",
         }}
       >
         <Stack spacing={1}>

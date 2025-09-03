@@ -1,5 +1,4 @@
 from datetime import datetime, timedelta
-
 import plaid
 from budgetbox_project.decorators import clerk_auth_required
 from budgetbox_project.settings import PLAID_CLIENT_ID, PLAID_SANDBOX_KEY
@@ -20,7 +19,8 @@ from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Transaction, create_transaction_from_plaid
+from .models import Transaction, BankAccount, create_transaction_from_plaid, create_bank_account_from_plaid
+from plaid.model.accounts_get_request import AccountsGetRequest
 
 # Create your views here.
 
@@ -71,8 +71,81 @@ class CreateLinkToken(APIView):
             return Response({"error": str(e)}, status=s.HTTP_400_BAD_REQUEST)
 
 
-class ExchangePublicToken(APIView):
+# class ExchangePublicToken(APIView):
 
+#     @clerk_auth_required
+#     def post(self, request):
+#         try:
+#             public_token = request.data.get("public_token")
+
+#             if not public_token:
+#                 return Response(
+#                     {"error": "public_token is required"}, status=s.HTTP_400_BAD_REQUEST
+#                 )
+
+#             # Exchange public token for access token
+#             exchange_request = ItemPublicTokenExchangeRequest(public_token=public_token)
+
+#             response = plaid_client.item_public_token_exchange(exchange_request)
+#             access_token = response["access_token"]
+#             item_id = response['item_id']
+
+#             accounts_request = AccountsGetRequest(access_token=access_token)
+#             print(f"requests: {accounts_request}")
+#             accounts_response = plaid_client.accounts_get(accounts_request)
+#             print(f"response: {accounts_response}")
+#             accounts_data = accounts_response['accounts']
+#             print(f"data: {accounts_data}")
+
+#             institution_name = accounts_response.get('item', {}).get('institution_name', 'Unknown Bank')
+
+#             # Get user
+#             user = User.objects.get(clerk_user_id=request.clerk_user_id)
+
+#             created_accounts = []
+#             existing_accounts = []
+
+#             for account_data in accounts_data:
+#                 account_data['item_id'] = item_id
+                
+#                 existing_account = BankAccount.objects.filter(
+#                     plaid_account_id=account_data['account_id']
+#                 ).first()
+                
+#                 if not existing_account:
+#                         bank_account = create_bank_account_from_plaid(
+#                             user, account_data, access_token, institution_name
+#                         )
+
+#                         created_accounts.append({
+#                         'id': bank_account.id,
+#                         'account_name': bank_account.account_name,
+#                         'account_type': bank_account.account_type,
+#                         'account_subtype': bank_account.account_subtype,
+#                         'mask': bank_account.mask,
+#                         'institution_name': bank_account.institution_name
+#                     })
+#                 else:
+#                     existing_accounts.append({
+#                         'id': existing_account.id,
+#                         'account_name': existing_account.account_name,
+#                         'message': 'Already connected'
+#                     })
+
+#             return Response({
+#                 'message': f'Successfully processed {len(accounts_data)} accounts',
+#                 'created_accounts': created_accounts,
+#                 'existing_accounts': existing_accounts,
+#                 'total_new': len(created_accounts),
+#                 'total_existing': len(existing_accounts)
+#             })
+        
+#         except Exception as e:
+#             return Response({
+#                 'error': str(e)
+#             }, status=s.HTTP_400_BAD_REQUEST)
+
+class ExchangePublicToken(APIView):
     @clerk_auth_required
     def post(self, request):
         try:
@@ -85,27 +158,80 @@ class ExchangePublicToken(APIView):
 
             # Exchange public token for access token
             exchange_request = ItemPublicTokenExchangeRequest(public_token=public_token)
-
             response = plaid_client.item_public_token_exchange(exchange_request)
             access_token = response["access_token"]
+            item_id = response['item_id']
+
+            accounts_request = AccountsGetRequest(access_token=access_token)
+            print(f"requests: {accounts_request}")
+            accounts_response = plaid_client.accounts_get(accounts_request)
+            print(f"response: {accounts_response}")
+            accounts_data = accounts_response['accounts']
+            print(f"data: {accounts_data}")
+
+            institution_name = accounts_response.get('item', {}).get('institution_name', 'Unknown Bank')
+            print(f"institution_name: {institution_name}")
 
             # Get user
+            print("Getting user...")
             user = User.objects.get(clerk_user_id=request.clerk_user_id)
+            print(f"User found: {user}")
 
-            # Store access token (you should encrypt this in production)
-            user.plaid_access_token = access_token
-            user.save()
+            # Lists to collect results
+            created_accounts = []
+            existing_accounts = []
 
-            return Response(
-                {
-                    "message": "Bank account linked successfully",
-                    "access_token": access_token,  # Don't return this in production
-                }
-            )
+            print("Starting account loop...")
+            for account_data in accounts_data:
+                print(f"Processing account: {account_data['account_id']}")
+                account_data['item_id'] = item_id
+                
+                print("Checking for existing account...")
+                existing_account = BankAccount.objects.filter(
+                    plaid_account_id=account_data['account_id']
+                ).first()
+                
+                if not existing_account:
+                    print("Creating new account...")
+                    bank_account = create_bank_account_from_plaid(
+                        user, account_data, access_token, institution_name
+                    )
+                    print(f"Account created: {bank_account}")
+                    
+                    # Add to created list
+                    created_accounts.append({
+                        'id': bank_account.id,
+                        'account_name': bank_account.account_name,
+                        'account_type': str(bank_account.account_type),
+                        'account_subtype': str(bank_account.account_subtype),
+                        'mask': bank_account.mask,
+                        'institution_name': bank_account.institution_name
+                    })
+                else:
+                    print(f"Account already exists: {existing_account}")
+                    # Add to existing list
+                    existing_accounts.append({
+                        'id': existing_account.id,
+                        'account_name': existing_account.account_name,
+                        'message': 'Already connected'
+                    })
 
+            print("Loop completed successfully")
+            return Response({
+                'message': f'Successfully processed {len(accounts_data)} accounts',
+                'created_accounts': created_accounts,
+                'existing_accounts': existing_accounts,
+                'total_new': len(created_accounts),
+                'total_existing': len(existing_accounts)
+            })
+        
         except Exception as e:
-            return Response({"error": str(e)}, status=s.HTTP_400_BAD_REQUEST)
-
+            import traceback
+            print(f"Full error traceback:")
+            print(traceback.format_exc())
+            return Response({
+                'error': str(e)
+            }, status=s.HTTP_400_BAD_REQUEST)
 
 class GetTransactions(APIView):
 
