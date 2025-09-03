@@ -8,6 +8,7 @@ import "./index.css";
 import App from "./App.jsx";
 import { ClerkProvider } from "@clerk/clerk-react";
 import { BrowserRouter as Router } from "react-router-dom";
+import { UserPlaidProvider } from "./context/UserPlaidContext.jsx";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 // if (import.meta.env.DEV) {
@@ -21,7 +22,9 @@ createRoot(document.getElementById("root")).render(
   <StrictMode>
     <Router>
       <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
-        <App />
+        <UserPlaidProvider>
+          <App />
+        </UserPlaidProvider>
       </ClerkProvider>
     </Router>
   </StrictMode>,

@@ -1,10 +1,10 @@
 from datetime import datetime, timedelta
+
 import plaid
-from budgetbox_project.decorators import clerk_auth_required
-from budgetbox_project.settings import PLAID_CLIENT_ID, PLAID_SANDBOX_KEY
 from django.contrib.auth import get_user_model
 from django.shortcuts import render
 from plaid.api import plaid_api
+from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.country_code import CountryCode
 from plaid.model.item_public_token_exchange_request import \
     ItemPublicTokenExchangeRequest
@@ -19,8 +19,12 @@ from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Transaction, BankAccount, create_transaction_from_plaid, create_bank_account_from_plaid
-from plaid.model.accounts_get_request import AccountsGetRequest
+from budgetbox_project.decorators import clerk_auth_required
+from budgetbox_project.settings import PLAID_CLIENT_ID, PLAID_SANDBOX_KEY
+from clerk_app.models import BudgetBoxUser
+
+from .models import (BankAccount, Transaction, create_bank_account_from_plaid,
+                     create_transaction_from_plaid)
 
 # Create your views here.
 
@@ -71,80 +75,6 @@ class CreateLinkToken(APIView):
             return Response({"error": str(e)}, status=s.HTTP_400_BAD_REQUEST)
 
 
-# class ExchangePublicToken(APIView):
-
-#     @clerk_auth_required
-#     def post(self, request):
-#         try:
-#             public_token = request.data.get("public_token")
-
-#             if not public_token:
-#                 return Response(
-#                     {"error": "public_token is required"}, status=s.HTTP_400_BAD_REQUEST
-#                 )
-
-#             # Exchange public token for access token
-#             exchange_request = ItemPublicTokenExchangeRequest(public_token=public_token)
-
-#             response = plaid_client.item_public_token_exchange(exchange_request)
-#             access_token = response["access_token"]
-#             item_id = response['item_id']
-
-#             accounts_request = AccountsGetRequest(access_token=access_token)
-#             print(f"requests: {accounts_request}")
-#             accounts_response = plaid_client.accounts_get(accounts_request)
-#             print(f"response: {accounts_response}")
-#             accounts_data = accounts_response['accounts']
-#             print(f"data: {accounts_data}")
-
-#             institution_name = accounts_response.get('item', {}).get('institution_name', 'Unknown Bank')
-
-#             # Get user
-#             user = User.objects.get(clerk_user_id=request.clerk_user_id)
-
-#             created_accounts = []
-#             existing_accounts = []
-
-#             for account_data in accounts_data:
-#                 account_data['item_id'] = item_id
-                
-#                 existing_account = BankAccount.objects.filter(
-#                     plaid_account_id=account_data['account_id']
-#                 ).first()
-                
-#                 if not existing_account:
-#                         bank_account = create_bank_account_from_plaid(
-#                             user, account_data, access_token, institution_name
-#                         )
-
-#                         created_accounts.append({
-#                         'id': bank_account.id,
-#                         'account_name': bank_account.account_name,
-#                         'account_type': bank_account.account_type,
-#                         'account_subtype': bank_account.account_subtype,
-#                         'mask': bank_account.mask,
-#                         'institution_name': bank_account.institution_name
-#                     })
-#                 else:
-#                     existing_accounts.append({
-#                         'id': existing_account.id,
-#                         'account_name': existing_account.account_name,
-#                         'message': 'Already connected'
-#                     })
-
-#             return Response({
-#                 'message': f'Successfully processed {len(accounts_data)} accounts',
-#                 'created_accounts': created_accounts,
-#                 'existing_accounts': existing_accounts,
-#                 'total_new': len(created_accounts),
-#                 'total_existing': len(existing_accounts)
-#             })
-        
-#         except Exception as e:
-#             return Response({
-#                 'error': str(e)
-#             }, status=s.HTTP_400_BAD_REQUEST)
-
 class ExchangePublicToken(APIView):
     @clerk_auth_required
     def post(self, request):
@@ -163,40 +93,29 @@ class ExchangePublicToken(APIView):
             item_id = response['item_id']
 
             accounts_request = AccountsGetRequest(access_token=access_token)
-            print(f"requests: {accounts_request}")
             accounts_response = plaid_client.accounts_get(accounts_request)
-            print(f"response: {accounts_response}")
             accounts_data = accounts_response['accounts']
-            print(f"data: {accounts_data}")
 
             institution_name = accounts_response.get('item', {}).get('institution_name', 'Unknown Bank')
-            print(f"institution_name: {institution_name}")
 
             # Get user
-            print("Getting user...")
             user = User.objects.get(clerk_user_id=request.clerk_user_id)
-            print(f"User found: {user}")
 
             # Lists to collect results
             created_accounts = []
             existing_accounts = []
 
-            print("Starting account loop...")
             for account_data in accounts_data:
-                print(f"Processing account: {account_data['account_id']}")
                 account_data['item_id'] = item_id
                 
-                print("Checking for existing account...")
                 existing_account = BankAccount.objects.filter(
                     plaid_account_id=account_data['account_id']
                 ).first()
                 
                 if not existing_account:
-                    print("Creating new account...")
                     bank_account = create_bank_account_from_plaid(
                         user, account_data, access_token, institution_name
                     )
-                    print(f"Account created: {bank_account}")
                     
                     # Add to created list
                     created_accounts.append({
@@ -208,7 +127,6 @@ class ExchangePublicToken(APIView):
                         'institution_name': bank_account.institution_name
                     })
                 else:
-                    print(f"Account already exists: {existing_account}")
                     # Add to existing list
                     existing_accounts.append({
                         'id': existing_account.id,
@@ -216,7 +134,6 @@ class ExchangePublicToken(APIView):
                         'message': 'Already connected'
                     })
 
-            print("Loop completed successfully")
             return Response({
                 'message': f'Successfully processed {len(accounts_data)} accounts',
                 'created_accounts': created_accounts,
@@ -234,75 +151,71 @@ class ExchangePublicToken(APIView):
             }, status=s.HTTP_400_BAD_REQUEST)
 
 class GetTransactions(APIView):
-
     @clerk_auth_required
     def get(self, request):
         try:
-            # Get user and their access token
-            user = User.objects.get(clerk_user_id=request.clerk_user_id)
+            # Fetch the user
+            user = BudgetBoxUser.objects.get(clerk_user_id=request.clerk_user_id)
 
-            if not user.plaid_access_token:
+            # Get all active bank accounts for this user
+            bank_accounts = user.bank_accounts.filter(is_active=True)
+
+            if not bank_accounts.exists():
                 return Response(
                     {"error": "No bank account linked. Please link an account first."},
-                    status=s.HTTP_400_BAD_REQUEST,
+                    status=400
                 )
 
-            # Get last 30 days of transactions
             start_date = datetime.now() - timedelta(days=30)
             end_date = datetime.now()
+            all_created_transactions = []
 
-            transactions_request = TransactionsGetRequest(
-                access_token=user.plaid_access_token,
-                start_date=start_date.date(),
-                end_date=end_date.date(),
-                # count=100,  # Max transactions to fetch
-            )
+            # Loop through each bank account
+            for bank_account in bank_accounts:
+                if not bank_account.plaid_access_token:
+                    continue  # skip accounts without a token
 
-            response = plaid_client.transactions_get(transactions_request)
-            transactions_data = response["transactions"]
+                transactions_request = TransactionsGetRequest(
+                    access_token=bank_account.plaid_access_token,
+                    start_date=start_date.date(),
+                    end_date=end_date.date(),
+                )
 
-            # Create transactions in database
-            created_transactions = []
-            for transaction_data in transactions_data:
-                # Convert Plaid transaction to dict format
-                transaction_dict = {
-                    "transaction_id": transaction_data["transaction_id"],
-                    "amount": float(transaction_data["amount"]),
-                    "date": str(transaction_data["date"]),
-                    "merchant_name": transaction_data.get("merchant_name"),
-                    "name": transaction_data.get("name"),
-                    "personal_finance_category": {
-                        "primary": transaction_data.get(
-                            "personal_finance_category", {}
-                        ).get("primary")
-                    },
-                }
+                response = plaid_client.transactions_get(transactions_request)
+                transactions_data = response["transactions"]
 
-                # Check if transaction already exists
-                if not Transaction.objects.filter(
-                    plaid_transaction_id=transaction_dict["transaction_id"]
-                ).exists():
-                    transaction = create_transaction_from_plaid(user, transaction_dict)
-                    created_transactions.append(
-                        {
+                for transaction_data in transactions_data:
+                    # Using get_or_create to avoid duplicates
+                    transaction, created = Transaction.objects.get_or_create(
+                        plaid_transaction_id=transaction_data['transaction_id'],
+                        defaults={
+                            "user": user,
+                            "bank_account": bank_account,
+                            "amount": abs(transaction_data['amount']),
+                            "merchant_name": transaction_data.get("merchant_name") or transaction_data.get("name") or "Unknown Merchant",
+                            "date_paid": transaction_data['date'],
+                            "category": transaction_data.get("personal_finance_category", {}).get("primary", "Uncategorized")
+                        }
+                    )
+                    if created:
+                        all_created_transactions.append({
                             "id": transaction.id,
                             "merchant_name": transaction.merchant_name,
                             "amount": str(transaction.amount),
                             "date_paid": str(transaction.date_paid),
                             "category": transaction.category,
-                        }
-                    )
+                            "account": bank_account.account_name,
+                        })
 
-            return Response(
-                {
-                    "message": f"Created {len(created_transactions)} new transactions",
-                    "transactions": created_transactions,
-                }
-            )
+            return Response({
+                "message": f"Created {len(all_created_transactions)} new transactions",
+                "transactions": all_created_transactions,
+            })
 
         except Exception as e:
-            return Response({"error": str(e)}, status=s.HTTP_400_BAD_REQUEST)
-
+            import traceback
+            print(traceback.format_exc())
+            return Response({"error": str(e)}, status=400)
 
 class ListTransactions(APIView):
 

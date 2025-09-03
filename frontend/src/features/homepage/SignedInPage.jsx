@@ -7,7 +7,6 @@ import { useNavigate } from "react-router-dom";
 export default function SignedInPage() {
   const navigate = useNavigate();
 
-
   return (
     <SignedIn>
       <Box

@@ -1,4 +1,4 @@
-#clerk_app/models.py
+# clerk_app/models.py
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
 
@@ -41,4 +41,3 @@ class BudgetBoxUser(AbstractUser):
 
     def __str__(self):
         return self.email
-

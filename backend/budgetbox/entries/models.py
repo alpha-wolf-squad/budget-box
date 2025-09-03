@@ -1,15 +1,15 @@
 # entries/models.py
-from django.db import models
 from decimal import Decimal
 
-from clerk_app.models import BudgetBoxUser
+from django.conf import settings
+from django.db import models
+
+# from clerk_app.models import BudgetBoxUser
 
 
 class Budget(models.Model):
     budget_box_user = models.ForeignKey(
-        BudgetBoxUser,
-        related_name="budgets",
-        on_delete=models.CASCADE
+        settings.AUTH_USER_MODEL, related_name="budgets", on_delete=models.CASCADE
     )
     # store the FIRST day of the month for uniqueness
     date = models.DateField()
@@ -24,15 +24,15 @@ class Budget(models.Model):
 
 class ExpenseStream(models.Model):
     budget = models.ForeignKey(
-        Budget,
-        related_name="expenses",
-        on_delete=models.CASCADE
+        Budget, related_name="expenses", on_delete=models.CASCADE
     )
 
     merchant_name = models.CharField(max_length=100)
     description = models.CharField(max_length=100)
     # amount is negative for expenses, positive for income
-    amount = models.DecimalField(max_digits=20, decimal_places=2, default=Decimal("0.00"))
+    amount = models.DecimalField(
+        max_digits=20, decimal_places=2, default=Decimal("0.00")
+    )
     # category defines "income" or "expense"
     category = models.CharField(max_length=100)
     # whether it's a recurring payment or not
