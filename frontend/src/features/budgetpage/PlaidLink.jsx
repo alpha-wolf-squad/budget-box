@@ -65,6 +65,7 @@ const PlaidLinkButton = () => {
     if (token && ready) {
       console.log("creating link token");
       open();
+      setToken(null);
     }
   }, [token, ready, open]);
 
