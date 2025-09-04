@@ -5,6 +5,7 @@ import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 import BudgetPage from './BudgetPage';
 import CurrentTransactionsPage from './CurrentTransactionsPage';
+import TransactionsReviewPage from './TransactionsReviewPage';
 
 function CustomTabPanel(props) {
   const { children, value, index, ...other } = props;
@@ -114,7 +115,7 @@ export default function BudgetTabs() {
         <CurrentTransactionsPage />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={2}>
-        Item Three
+        <TransactionsReviewPage />
       </CustomTabPanel>
     </Box>
   );
