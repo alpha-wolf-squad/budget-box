@@ -1,8 +1,7 @@
-from datetime import datetime, timedelta
-
 import plaid
 from django.contrib.auth import get_user_model
 from django.shortcuts import render
+from django.utils import timezone
 from plaid.api import plaid_api
 from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.country_code import CountryCode
@@ -12,7 +11,7 @@ from plaid.model.link_token_create_request import LinkTokenCreateRequest
 from plaid.model.link_token_create_request_user import \
     LinkTokenCreateRequestUser
 from plaid.model.products import Products
-from plaid.model.transactions_get_request import TransactionsGetRequest
+from plaid.model.transactions_sync_request import TransactionsSyncRequest
 from rest_framework import permissions
 from rest_framework import status as s
 from rest_framework import viewsets
@@ -24,7 +23,9 @@ from budgetbox_project.settings import PLAID_CLIENT_ID, PLAID_SANDBOX_KEY
 from clerk_app.models import BudgetBoxUser
 
 from .models import (BankAccount, Transaction, create_bank_account_from_plaid,
-                     create_transaction_from_plaid)
+                     create_transaction_from_plaid,
+                     delete_transaction_from_plaid,
+                     update_transaction_from_plaid)
 
 # Create your views here.
 
@@ -154,10 +155,7 @@ class GetTransactions(APIView):
     @clerk_auth_required
     def get(self, request):
         try:
-            # Fetch the user
             user = BudgetBoxUser.objects.get(clerk_user_id=request.clerk_user_id)
-
-            # Get all active bank accounts for this user
             bank_accounts = user.bank_accounts.filter(is_active=True)
 
             if not bank_accounts.exists():
@@ -166,46 +164,76 @@ class GetTransactions(APIView):
                     status=400
                 )
 
-            start_date = datetime.now() - timedelta(days=30)
-            end_date = datetime.now()
             all_created_transactions = []
 
-            # Loop through each bank account
             for bank_account in bank_accounts:
                 if not bank_account.plaid_access_token:
-                    continue  # skip accounts without a token
+                    continue
 
-                transactions_request = TransactionsGetRequest(
-                    access_token=bank_account.plaid_access_token,
-                    start_date=start_date.date(),
-                    end_date=end_date.date(),
-                )
+                try:
+                    cursor = bank_account.sync_cursor or ""
+                    
+                    # Collect all updates for this account
+                    added = []
+                    modified = []
+                    removed = []
+                    has_more = True
 
-                response = plaid_client.transactions_get(transactions_request)
-                transactions_data = response["transactions"]
+                    # Paginate through all updates
+                    while has_more:
+                        sync_request = TransactionsSyncRequest(
+                            access_token=bank_account.plaid_access_token,
+                            cursor=cursor,
+                            count=500  # Optional: limit per request
+                        )
+                        
+                        response = plaid_client.transactions_sync(sync_request)
+                        
+                        # Collect all updates from this page
+                        added.extend(response.get('added', []))
+                        modified.extend(response.get('modified', []))
+                        removed.extend(response.get('removed', []))
+                        
+                        has_more = response.get('has_more', False)
+                        cursor = response.get('next_cursor')
+                    # Process all added transactions
+                    for transaction_data in added:
+                        transaction, created = create_transaction_from_plaid(
+                            user, bank_account, transaction_data
+                        )
+                        
+                        if created:
+                            all_created_transactions.append({
+                                "id": transaction.id,
+                                "merchant_name": transaction.merchant_name,
+                                "amount": str(transaction.amount),
+                                "authorized_date": str(transaction.authorized_date),
+                                "date_paid": str(transaction.date_paid) if transaction.date_paid else None,
+                                "category": transaction.category,
+                                "account": bank_account.account_name,
+                            })
 
-                for transaction_data in transactions_data:
-                    # Using get_or_create to avoid duplicates
-                    transaction, created = Transaction.objects.get_or_create(
-                        plaid_transaction_id=transaction_data['transaction_id'],
-                        defaults={
-                            "user": user,
-                            "bank_account": bank_account,
-                            "amount": abs(transaction_data['amount']),
-                            "merchant_name": transaction_data.get("merchant_name") or transaction_data.get("name") or "Unknown Merchant",
-                            "date_paid": transaction_data['date'],
-                            "category": transaction_data.get("personal_finance_category", {}).get("primary", "Uncategorized")
-                        }
-                    )
-                    if created:
-                        all_created_transactions.append({
-                            "id": transaction.id,
-                            "merchant_name": transaction.merchant_name,
-                            "amount": str(transaction.amount),
-                            "date_paid": str(transaction.date_paid),
-                            "category": transaction.category,
-                            "account": bank_account.account_name,
-                        })
+                    # Process modified transactions
+                    for transaction_data in modified:
+                        existing_transaction = Transaction.objects.filter(
+                            plaid_transaction_id=transaction_data['transaction_id']
+                        ).first()
+                        
+                        if existing_transaction:
+                            update_transaction_from_plaid(existing_transaction, transaction_data)
+
+                    # Process removed transactions  
+                    for removed_data in removed:
+                        delete_transaction_from_plaid(removed_data['transaction_id'])
+
+                    # Save cursor for next sync
+                    bank_account.sync_cursor = cursor
+                    bank_account.last_synced = timezone.now()
+                    bank_account.save()
+
+                except Exception as account_error:
+                    print(f"Error syncing account {bank_account.account_name}: {account_error}")
+                    continue
 
             return Response({
                 "message": f"Created {len(all_created_transactions)} new transactions",
@@ -218,7 +246,6 @@ class GetTransactions(APIView):
             return Response({"error": str(e)}, status=400)
 
 class ListTransactions(APIView):
-
     @clerk_auth_required
     def get(self, request):
         try:
@@ -232,16 +259,16 @@ class ListTransactions(APIView):
                         "id": transaction.id,
                         "merchant_name": transaction.merchant_name,
                         "amount": str(transaction.amount),
-                        "date_paid": str(transaction.date_paid),
+                        "authorized_date": str(transaction.authorized_date),  # Primary date field
+                        "date_paid": str(transaction.date_paid) if transaction.date_paid else None,  # Optional
                         "category": transaction.category,
                         "created_at": transaction.created_at.isoformat(),
                     }
                 )
-
+            
             return Response(
                 {"transactions": transaction_data, "count": len(transaction_data)}
             )
-
         except Exception as e:
             return Response({"error": str(e)}, status=s.HTTP_400_BAD_REQUEST)
 
