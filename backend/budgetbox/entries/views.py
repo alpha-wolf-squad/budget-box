@@ -69,10 +69,15 @@ class GetBudget(APIView):
 
         # optional ?date=YYYY-MM or YYYY-MM-DD
         month_param = request.query_params.get("date")
+        print("DEBUGGING:", month_param)
         month_date = _parse_date_or_current_month(month_param)
+
+        print(f"User ID: {user.id}, Month Date: {month_date}")  # Debugging statement
 
         budget = _get_or_create_budget(user, month_date)
         streams = budget.expenses.all().order_by("id")
+
+        print(f"Budget ID: {budget.id}, Number of Streams: {streams.count()}")  # Debugging statement
 
         return Response({
             "budget": Budget_serializer(budget).data,

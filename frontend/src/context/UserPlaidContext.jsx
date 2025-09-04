@@ -44,6 +44,7 @@ export const UserPlaidProvider = ({ children }) => {
 
   // Auto-fetch on mount
   useEffect(() => {
+    // console.log("UserPlaidProvider rendered");
     if (!isSignedIn) return;
 
     if (!didFetch) {
@@ -53,7 +54,7 @@ export const UserPlaidProvider = ({ children }) => {
   }, [fetchTransactions, isSignedIn]);
 
   //Used to show transactions are fetching
-  console.log(transactions);
+  console.log("Current transactions:", transactions);
   return (
     <UserPlaidContext.Provider
       value={{
