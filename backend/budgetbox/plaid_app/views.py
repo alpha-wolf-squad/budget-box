@@ -250,8 +250,8 @@ class ListTransactions(APIView):
     def get(self, request):
         try:
             user = User.objects.get(clerk_user_id=request.clerk_user_id)
-            transactions = user.transactions.all()[:50]  # Last 50 transactions
-            
+            transactions = user.transactions.all()[:2]  # Last 3 transactions
+
             transaction_data = []
             for transaction in transactions:
                 transaction_data.append(
@@ -269,5 +269,93 @@ class ListTransactions(APIView):
             return Response(
                 {"transactions": transaction_data, "count": len(transaction_data)}
             )
+        except Exception as e:
+            return Response({"error": str(e)}, status=s.HTTP_400_BAD_REQUEST)
+
+class RefreshTransactions(APIView):
+
+    @clerk_auth_required
+    def get(self, request):
+        try:
+            user = User.objects.get(clerk_user_id=request.clerk_user_id)
+
+            bank_accounts = user.bank_accounts.filter(is_active=True)
+
+            if not bank_accounts.exists():
+                return Response(
+                    {"error": "No bank account linked. Please link an account first."}
+                    status=400
+                )
+            
+            start_date = datetime.now() - timedelta(days=7) # new transactions start from one week ago
+            end_date = datetime.now() # new transactions end at pull time
+            all_new_transactions = []
+
+            for bank_account in bank_accounts:
+                if not bank_account.plaid_access_token:
+                    continue
+
+                transactions_request = TransactionsGetRequest(
+                    access_token=bank_account.plaid_access_token,
+                    start_date=start_date(),
+                    end_date=end_date(),
+                )
+
+                response = plaid_client.transactions_get(transactions_request)
+                transactions_data = response["transactions"]
+
+                for transaction_data in transactions_data[:10]:
+                    transaction, created = Transaction.objects.get_or_create(
+                        plaid_transaction_id=transaction_data["transaction_id"],
+                        defaults={
+                            "user": user,
+                            "bank_account": bank_account,
+                            "amount": abs(transaction_data["amount"]),
+                            "merchant_name": transaction_data.get("merchant_name") or transaction_data.get("name") or "Unknown Merchant",
+                            "date_paid": transaction_data["date"],
+                            "category": transaction_data.get("personal_finance_category", {}).get("primary", "Uncategorized")
+                        }
+                    )
+
+                    all_new_transactions.append({
+                        "id": transaction.id,
+                        "merchant_name": transaction.merchant_name,
+                        "amount": str(transaction.amount),
+                        "date_paid": str(transaction.date_paid),
+                        "category": transaction.category,
+                        "account": bank_account.account_name,
+                        "is_new": created # tells frontend if this is new
+                    })
+
+            all_new_transactions.sort(key=lambda x: x["date_paid"], reverse=True) # sorts by date paid
+
+            return Response({
+                "message": f"Retrieved {len(all_new_transactions)} transactions.",
+                "transactions": all_new_transactions,
+                "count": len(all_new_transactions)
+            })
+        
+        except Exception as e:
+            import traceback
+            print(traceback.format_exc())
+            return Response({"error": str(e)}, status=400)
+
+            new_transaction_data = []
+            for new_transaction in new_transactions:
+                new_transaction_data.append(
+                    {
+                        "id": new_transaction.id,
+                        "merchant_name": new_transaction.merchant_name,
+                        "amount": str(new_transaction.amount),
+                        "date_paid": str(new_transaction.date_paid),
+                        "category": new_transaction.category,
+                        "created_at": new_transaction.created_at.isoformat(),
+                    }
+                )
+
+            return Response(
+                {"new transactions": new_transaction_data, "count": len(new_transaction_data)}
+            )
+        
         except Exception as e:
             return Response({"error": str(e)}, status=s.HTTP_400_BAD_REQUEST)
