@@ -5,6 +5,7 @@ from .views import (
     ExchangePublicToken,
     GetTransactions,
     ListTransactions,
+    RefreshTransactions,
 )
 
 urlpatterns = [
@@ -16,5 +17,9 @@ urlpatterns = [
     ),
     path("get-transactions/", GetTransactions.as_view(), name="get_transactions"),
     path("list-transactions/", ListTransactions.as_view(), name="list_transactions"),
+    path(
+        "refresh-transactions/",
+        RefreshTransactions.as_view(),
+        name="refresh_transactions",
+    ),
 ]
-
