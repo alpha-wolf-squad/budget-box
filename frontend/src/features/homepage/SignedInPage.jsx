@@ -21,14 +21,14 @@ export default function SignedInPage() {
         <UserButton>
           {/* Add custom items to the dropdown */}
           <UserButton.MenuItems>
-            <UserButton.MenuItem
+            {/* <UserButton.MenuItem
               label="Connect bank account"
               onClick={() => ready && open()}
             />
             <UserButton.MenuItem
               label="Account settings"
               onClick={() => navigate("/account")}
-            />
+            /> */}
           </UserButton.MenuItems>
         </UserButton>
       </Box>

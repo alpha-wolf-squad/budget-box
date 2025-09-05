@@ -7,33 +7,17 @@ import {
   Stack,
   Paper,
 } from "@mui/material";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import StreamCard from "./StreamCard.jsx";
 import AddIncomeCard from "./AddIncomeCard.jsx";
 import IncomeCardForm from "../../forms/IncomeCardForm.jsx";
 import AddExpenseCard from "./AddExpenseCard.jsx";
 import ExpenseCardForm from "../../forms/ExpenseCardForm.jsx";
+import useBudget from "../../services/BudgetCall.jsx"
 
 export default function BudgetPage() {
-  const [incomes, setIncomes] = useState([
-    {
-      id: "inc-1",
-      name: "Salary",
-      amount: 4200,
-      recurrence: "monthly",
-      type: "income",
-    },
-  ]);
-
-  const [expenses, setExpenses] = useState([
-    {
-      id: "exp-1",
-      name: "Rent",
-      amount: 1500,
-      recurrence: "monthly",
-      type: "expense",
-    },
-  ]);
+  const [incomes, setIncomes] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   
   const addIncome = (item) => {
     setIncomes((prev) => [item, ...prev]);
@@ -69,20 +53,57 @@ const handleDeleteExpense = (id) => {
   const [showExpenseForm, setShowExpenseForm] = useState(false);
 
   const incomeTotal = useMemo(
-    () => incomes.reduce((s, x) => s + x.amount, 0),
+    () => incomes.reduce((s, x) => s + parseFloat(x.amount), 0),
     [incomes]
   );
   const expenseTotal = useMemo(
-    () => expenses.reduce((s, x) => s + x.amount, 0),
+    () => expenses.reduce((s, x) => s + parseFloat(x.amount), 0),
     [expenses]
   );
   const net = useMemo(
-    () => incomeTotal - expenseTotal,
+    () => incomeTotal + expenseTotal,
     [incomeTotal, expenseTotal]
   );
 
   const totalColor =
     net > 0 ? "success.main" : net < 0 ? "error.main" : "text.primary";
+
+
+  // fetches Budget from the backend
+  const { getBudget } = useBudget();
+  useEffect(() => {
+    const normalizeData = (data) => {
+      let extractedData = data.streams
+      // console.log(typeof extractedData.amount)
+      return extractedData
+    }
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = await getBudget("2025-09");
+        // console.log(typeof data.streams.amount)
+        if (!cancelled) {
+          let normData = normalizeData(data);
+          // console.log("Normalized Data:", normData); // Debugging log for normalized data
+          for (const object of normData) {
+            // console.log("Processing object:", object); // Debugging log for each object
+            if (object.category === 'income') {
+              // console.log("Updating incomes with amount:", object.amount); // Debugging log for income
+              setIncomes(prev => [...prev, { ...object }]); // Update incomes useState
+              // console.log("New incomes: ", incomes)
+            } else {
+              // console.log("Updating expenses with amount:", object.amount); // Debugging log for expense
+              setExpenses(prev => [...prev, { ...object }]); // Update expenses useState
+            }
+          }
+        };
+            } catch (e) {
+        console.error("Error fetching budget:", e); // Log error if fetching fails
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
 
   return (
