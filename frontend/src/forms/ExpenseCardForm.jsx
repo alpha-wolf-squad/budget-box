@@ -8,27 +8,35 @@ import {
   Card,
   CardContent,
   CardActions,
-  InputAdornment,
+  InputAdornment, // Added InputAdornment import
 } from "@mui/material";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-export default function ExpenseCardForm({ onCancel, onSubmit, sx }) {
+export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [recurrence, setRecurrence] = useState("monthly");
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState({});
 
-  // Compact input styling
+  // Populate form fields with initial data when editing
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || "");
+      setAmount(String(Math.abs(initialData.amount)) || ""); // Convert amount to positive string
+      setRecurrence(initialData.recurrence || "monthly");
+      setDescription(initialData.description || "");
+    }
+  }, [initialData]);
+
   const COMPACT_INPUT_SX = {
     "& .MuiInputBase-input": { fontSize: 14, paddingTop: "6px", paddingBottom: "6px" },
     "& .MuiInputLabel-root": { fontSize: 13 },
     "& .MuiFormHelperText-root": { fontSize: 11 },
   };
 
-
-  const NAME_W = 100;        
-  const AMOUNT_W = 100;      
+  const NAME_W = 100;
+  const AMOUNT_W = 100;
   const RECURRENCE_W = 90;
 
   const handleSubmit = () => {
@@ -45,9 +53,9 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx }) {
     if (Object.keys(next).length) return;
 
     onSubmit({
-      id: crypto?.randomUUID?.() ?? String(Date.now()),
+      id: (initialData?.id || crypto?.randomUUID?.()) ?? String(Date.now()), // Keep the same ID if editing
       name: name.trim(),
-      amount: Math.abs(amtNum),     
+      amount: -Math.abs(amtNum), // Always store as a negative value
       description: description.trim() || undefined,
       type: "expense",
       recurrence,
@@ -60,16 +68,15 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx }) {
         width: "100%",
         minWidth: 0,
         borderLeft: 4,
-        borderColor: "error.main",               
+        borderColor: "error.main",
         ...sx,
       }}
     >
       <CardContent sx={{ minWidth: 0 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-          Add a new recurring expense:
+          {initialData ? "Edit recurring expense:" : "Add a new recurring expense:"}
         </Typography>
 
-        {/* Top row */}
         <Box
           sx={{
             display: "grid",
@@ -87,7 +94,6 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx }) {
             },
           }}
         >
-          {/* Name */}
           <TextField
             label="Name"
             value={name}
@@ -99,12 +105,10 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx }) {
             sx={{ gridArea: "name", minWidth: 0, ...COMPACT_INPUT_SX }}
           />
 
-          {/* Amount (visual minus, no spinners) */}
           <TextField
             label="Amount *"
             value={amount}
             onChange={(e) => {
-              // Keep digits and one decimal separator (dot or comma)
               let v = e.target.value.replace(/[^\d.,]/g, "");
               const parts = v.split(/[.,]/);
               if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("");
@@ -127,7 +131,6 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx }) {
             }}
           />
 
-          {/* Recurrence */}
           <TextField
             label="Recurrence"
             select
@@ -143,7 +146,6 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx }) {
           </TextField>
         </Box>
 
-        {/* Description */}
         <TextField
           label="Description (optional)"
           value={description}
@@ -157,7 +159,9 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx }) {
 
       <CardActions sx={{ justifyContent: "flex-end" }}>
         <Button onClick={onCancel}>Cancel</Button>
-        <Button variant="contained" onClick={handleSubmit}>Save</Button>
+        <Button variant="contained" onClick={handleSubmit}>
+          Save
+        </Button>
       </CardActions>
     </Card>
   );

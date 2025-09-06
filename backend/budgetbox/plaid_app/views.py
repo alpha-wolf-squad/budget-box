@@ -5,13 +5,12 @@ from django.utils import timezone
 from plaid.api import plaid_api
 from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.country_code import CountryCode
-from plaid.model.item_public_token_exchange_request import \
-    ItemPublicTokenExchangeRequest
+from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
-from plaid.model.link_token_create_request_user import \
-    LinkTokenCreateRequestUser
+from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
 from plaid.model.products import Products
 from plaid.model.transactions_sync_request import TransactionsSyncRequest
+from plaid.model.transactions_get_request import TransactionsGetRequest
 from rest_framework import permissions
 from rest_framework import status as s
 from rest_framework import viewsets
@@ -27,6 +26,7 @@ from .models import (BankAccount, Transaction, create_bank_account_from_plaid,
                      delete_transaction_from_plaid,
                      update_transaction_from_plaid)
 
+from datetime import datetime, timedelta  # Import datetime and timedelta
 # Create your views here.
 
 User = get_user_model()
@@ -283,8 +283,7 @@ class RefreshTransactions(APIView):
 
             if not bank_accounts.exists():
                 return Response(
-                    {"error": "No bank account linked. Please link an account first."}
-                    status=400
+                    {"error": "No bank account linked. Please link an account first."}, status=s.HTTP_400_BAD_REQUEST
                 )
             
             start_date = datetime.now() - timedelta(days=7) # new transactions start from one week ago
