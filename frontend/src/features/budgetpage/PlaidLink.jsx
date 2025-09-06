@@ -2,82 +2,74 @@ import { useCallback, useState, useEffect } from "react";
 import { usePlaidLink } from "react-plaid-link";
 import { useAuthenticatedApi } from "../../services/hooks.js";
 import { useUserPlaid } from "../../context/UserPlaidContext.jsx";
-import { Button, Box } from "@mui/material";
+import { Button } from "@mui/material";
+import { createLinkToken, exchangePublicToken, fetchTransactionsFromApi } from "../../services/plaidService.jsx";
 
 const PlaidLinkButton = () => {
+  // State to hold the link token and loading status
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(false);
-  const {api} = useAuthenticatedApi();
-  const { setPlaidTransactions } = useUserPlaid(); // <-- context
+  
+  // Hook to access authenticated API
+  const { api } = useAuthenticatedApi();
+  
+  // Hook to manage user's Plaid transactions
+  const { setPlaidTransactions } = useUserPlaid();
 
+  // Callback function to handle successful link connection
   const onSuccess = useCallback(
-    (publicToken) => {
-      const exchangePublicToken = async () => {
-        try {
-          const response = await api.post(
-            "http://localhost:8000/api/plaid/exchange-public-token/",
-            { public_token: publicToken },
-          );
-          if (response.status === 200) {
-            // Step 2: Pull new transactions from Plaid and save to DB
-            const newTxResponse = await api.get(
-              "http://localhost:8000/api/plaid/get-transactions/",
-            );
-
-            if (newTxResponse.status === 200) {
-              // Step 3: Refresh context state from DB
-              setPlaidTransactions(newTxResponse.data.transactions);
-            }
-          }
-        } catch (error) {
-          console.error("Error exchanging public token:", error);
+    async (publicToken) => {
+      try {
+        // Exchange the public token for an access token
+        const tokenExchanged = await exchangePublicToken(api, publicToken);
+        if (tokenExchanged) {
+          // Fetch transactions from the API after successful token exchange
+          const transactions = await fetchTransactionsFromApi(api);
+          setPlaidTransactions(transactions); // Update the context with fetched transactions
         }
-      };
-      exchangePublicToken();
+      } catch (error) {
+        console.error("Error during Plaid link process:", error);
+      }
     },
-    [api, setPlaidTransactions],
+    [api, setPlaidTransactions]
   );
 
+  // Initialize Plaid Link with the token and success handler
   const { open, ready } = usePlaidLink({
     token,
     onSuccess,
-    // onEvent
-    // onExit
   });
 
-  //NOTE: User clicks "Connect a bank account".  This will create a link_token, and open the link modal.
+  // Function to create a new link token
   const handleCreateLinkToken = async () => {
-    setLoading(true);
+    setLoading(true); // Set loading state to true
     try {
-      const response = await api.post(
-        "http://localhost:8000/api/plaid/create-link-token/",
-      );
-      const { link_token } = await response.data;
-      setToken(link_token);
+      // Create a link token using the authenticated API
+      const linkToken = await createLinkToken(api);
+      setToken(linkToken); // Store the link token in state
     } catch (error) {
       console.error("Error creating link token:", error);
     } finally {
-      setLoading(false);
+      setLoading(false); // Reset loading state
     }
   };
 
-  //Our useEffect triggers once the link_token has been successfully created
+  // Effect to open the Plaid Link when the token is ready
   useEffect(() => {
     if (token && ready) {
-      console.log("creating link token");
-      open();
-      setToken(null);
+      open(); // Open the Plaid Link
+      setToken(null); // Reset the token after opening
     }
   }, [token, ready, open]);
 
   return (
-      <Button
-        onClick={handleCreateLinkToken}
-        disabled={loading || (!ready && token)}
-        variant="contained"
-      >
-        {loading ? "Loading..." : "Connect a bank account"}
-      </Button>
+    <Button
+      onClick={handleCreateLinkToken} // Trigger token creation on button click
+      disabled={loading || (!ready && token)} // Disable button if loading or not ready
+      variant="contained"
+    >
+      {loading ? "Loading..." : "Connect a bank account"} // Button text based on loading state
+    </Button>
   );
 };
 

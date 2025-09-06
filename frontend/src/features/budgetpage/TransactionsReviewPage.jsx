@@ -7,7 +7,7 @@ import {
     Stack,
     Paper,
   } from "@mui/material";
-  import { useEffect, useMemo, useState } from "react";
+  import { useMemo, useState } from "react";
   import StreamCard from "./StreamCard.jsx";
   import AddExpenseCard from "./AddExpenseCard.jsx";
   import ReviewExpenseCardForm from "../../forms/ReviewExpenseCardForm.jsx";
@@ -66,9 +66,10 @@ export default function TransactionsReviewPage() {
   const totalColor =
   net > 0 ? "success.main" : net < 0 ? "error.main" : "text.primary";
 
+
   return (
   <>
-    {!plaidConnected ? (
+    {plaidConnected ? (
       <Box
         sx={{
         display: "flex",
