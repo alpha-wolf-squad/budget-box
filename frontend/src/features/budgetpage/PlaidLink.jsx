@@ -5,7 +5,7 @@ import { useUserPlaid } from "../../context/UserPlaidContext.jsx";
 import { Button } from "@mui/material";
 import { createLinkToken, exchangePublicToken, fetchTransactionsFromApi } from "../../services/plaidService.jsx";
 
-const PlaidLinkButton = () => {
+const PlaidLinkButton = ({ onPlaidConnected }) => {
   // State to hold the link token and loading status
   const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -23,15 +23,17 @@ const PlaidLinkButton = () => {
         // Exchange the public token for an access token
         const tokenExchanged = await exchangePublicToken(api, publicToken);
         if (tokenExchanged) {
+          onPlaidConnected(true); // Notify parent that Plaid is connected
           // Fetch transactions from the API after successful token exchange
           const transactions = await fetchTransactionsFromApi(api);
           setPlaidTransactions(transactions); // Update the context with fetched transactions
         }
       } catch (error) {
         console.error("Error during Plaid link process:", error);
+        onPlaidConnected(false); // Notify parent fo failure
       }
     },
-    [api, setPlaidTransactions]
+    [api, setPlaidTransactions, onPlaidConnected]
   );
 
   // Initialize Plaid Link with the token and success handler

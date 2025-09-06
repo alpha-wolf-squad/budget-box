@@ -16,9 +16,10 @@ import {
 
 
 export default function TransactionsReviewPage() {
-  const [plaidConnected, setPlaidConnected] = useState(null);
+  const [plaidConnected, setPlaidConnected] = useState(false);
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
 
   const addIncome = (item) => {
     setIncomes((prev) => [item, ...prev]);
@@ -44,10 +45,6 @@ export default function TransactionsReviewPage() {
     setExpenses((prev) => prev.filter((x) => x.id !== id));
   };
 
-
-  const [showIncomeForm, setShowIncomeForm] = useState(false);
-  const [showExpenseForm, setShowExpenseForm] = useState(false);
-
   const incomeTotal = useMemo(
     () => incomes.reduce((s, x) => s + x.amount, 0),
     [incomes]
@@ -63,70 +60,54 @@ export default function TransactionsReviewPage() {
     [incomeTotal, expenseTotal]
   );
 
-  const totalColor =
-  net > 0 ? "success.main" : net < 0 ? "error.main" : "text.primary";
-
 
   return (
   <>
-    {plaidConnected ? (
-      <Box
-        sx={{
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-        height: "100%",
-        mb: 2,
-        }}
+    {!plaidConnected ? (
+      <>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            height: "100%",
+            mb: 2,
+          }}
         >
-          <PlaidLinkButton />
+          <PlaidLinkButton onPlaidConnected={setPlaidConnected} />
+        </Box>
+      </>
+    ) : (
+      <>
+      {/* Expenses */}
+      <Box sx={{ minWidth: 0 }}>
+        <Stack spacing={2}>
+          {showExpenseForm ? (
+            <ReviewExpenseCardForm
+              sx={{ minWidth: 0 }}
+              onCancel={() => setShowExpenseForm(false)}
+              onSubmit={addExpense}
+            />
+          ) : (
+            <AddExpenseCard onClick={() => setShowExpenseForm(true)} />
+          )}
+          {expenses.map((e) => (
+            <StreamCard
+              key={e.id}
+              id={e.id}
+              name={e.name}
+              amount={e.amount}
+              description={e.description}
+              type="expense"
+              onDelete={handleDeleteExpense}
+              onEdit={handleEditExpense}
+            />
+          ))}
+        </Stack>
       </Box>
-    ): <Button>Refresh</Button> }
-
-    {/*  summary header */}
-    <Box
-      sx={{
-      p: 2,
-      mb: 2,
-      borderRadius: 2,
-      bgcolor: "background.paper",
-      border: "1px solid",
-      borderColor: "divider",
-      textAlign: "center",
-      }}
-    >
-      
-    </Box>
-
-
-
-
-    {/* Expenses */}
-    <Box sx={{ minWidth: 0 }}>
-      <Stack spacing={2}>
-        {showExpenseForm ? (
-        <ReviewExpenseCardForm
-        sx={{ minWidth: 0 }}
-        onCancel={() => setShowExpenseForm(false)}
-        onSubmit={addExpense}
-        />
-        ) : (
-        <AddExpenseCard onClick={() => setShowExpenseForm(true)} />
-        )}
-        {expenses.map((e) => (
-          <StreamCard
-          key={e.id}
-          id={e.id}
-          name={e.name}
-          amount={e.amount}
-          description={e.description}
-          type="expense"
-          onDelete={handleDeleteExpense}
-          onEdit={handleEditExpense}
-          />
-        ))}
-      </Stack>
-    </Box>
+      <Button>Refresh</Button>
+      </>
+    )}
   </>
   );
 }
