@@ -250,7 +250,7 @@ class ListTransactions(APIView):
     def get(self, request):
         try:
             user = User.objects.get(clerk_user_id=request.clerk_user_id)
-            transactions = user.transactions.all()[:2]  # Last 3 transactions
+            transactions = user.transactions.all()[:3]  # Last 3 transactions
 
             transaction_data = []
             for transaction in transactions:

@@ -46,7 +46,7 @@ class Transaction(models.Model):
     merchant_name = models.CharField(max_length=255)
 
     # Use authorized_date as primary field (more accurate than posted date)
-    authorized_date = models.DateField()
+    authorized_date = models.DateField(null=True)
     # Keep date_paid for reference but not required
     date_paid = models.DateField(blank=True, null=True)
 
