@@ -10,7 +10,7 @@ import {
 import { useMemo, useState, useContext } from "react";
 import StreamCard from "./StreamCard.jsx";
 import AddExpenseCard from "./AddExpenseCard.jsx";
-import ReviewExpenseCardForm from "../../forms/ReviewExpenseCardForm.jsx";
+import ExpenseCardForm from "../../forms/ExpenseCardForm.jsx";
 import PlaidLinkButton from "./PlaidLink.jsx";
 import {refreshTransactions} from "../../services/plaidService.jsx"
 import { useAuthenticatedApi } from "../../services/hooks.js";
@@ -20,18 +20,22 @@ import { useUserPlaid } from "../../context/UserPlaidContext.jsx";
 export default function TransactionsReviewPage() {
   const [plaidConnected, setPlaidConnected] = useState(false);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null); // Toggle editing expense state
+  const [showEditExpenseForm, setShowEditExpenseForm] = useState(false); // For editing
   const { api } = useAuthenticatedApi();
-  const { plaidTransactions } = useUserPlaid();
+  const { plaidTransactions, setPlaidTransactions } = useUserPlaid();
 
   console.log("Plaid Transactions:", plaidTransactions);
 
   const handleEditExpense = (id) => {
-    // TODO: open edit form and load this item’s data
-    console.log("edit expense", id);
+    const expenseToEdit = plaidTransactions.find((expense) => expense.id === id);
+    console.log(expenseToEdit)
+    setEditingExpense(expenseToEdit);
+    setShowEditExpenseForm(true);
   };
 
-  const handleDeleteExpense = (id) => {
-    setExpenses((prev) => prev.filter((x) => x.id !== id));
+  const handleDeleteExpense = (id) => { // Needs to call 'delete' method for plaid/transactions DT
+    setPlaidTransactions((prev) => prev.filter((x) => x.id !== id));
   };
 
   return (
@@ -55,17 +59,32 @@ export default function TransactionsReviewPage() {
       {/* Expenses */}
       <Box sx={{ minWidth: 0 }}>
         <Stack spacing={2}>
-          {plaidTransactions.map((tx) => ( // tx is transaction
+          {plaidTransactions.map((tx) => editingExpense?.id === tx.id && showEditExpenseForm ? ( // tx is transaction
+            <ExpenseCardForm
+            key={tx.id}
+            sx={{ minWidth: 0 }}
+            onCancel={() => {
+              setShowExpenseForm(false);
+              setEditingExpense(null);
+            }}
+            onSubmit={(updatedExpense) => {
+              setPlaidTransactions((prev) =>
+                prev.map((e) => (e.id === updatedExpense.id ? updatedExpense : e))
+              );
+              setShowExpenseForm(false);
+              setEditingExpense(null);
+            }}
+            initialData={editingExpense}
+            />
+            ) : (
             <StreamCard
               key={tx.id}
               id={tx.id}
               name={tx.merchant_name}
               amount={tx.amount}
-              // description={e.description}
-              // type="expense"
-              // category:{e.category}
+              category={tx.category} // Displaying the category
               onDelete={handleDeleteExpense}
-              onEdit={handleEditExpense}
+              onEdit={handleEditExpense} // Should delete from the useState and from plaid/transactions DT
             />
           ))}
         </Stack>

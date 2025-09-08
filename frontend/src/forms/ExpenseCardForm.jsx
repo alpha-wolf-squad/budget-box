@@ -2,7 +2,6 @@ import {
   Box,
   TextField,
   MenuItem,
-  Stack,
   Button,
   Typography,
   Card,
@@ -15,7 +14,7 @@ import { useState, useEffect } from "react";
 export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [recurrence, setRecurrence] = useState("monthly");
+  const [category, setCategory] = useState("other"); // Default category
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState({});
 
@@ -24,7 +23,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
     if (initialData) {
       setName(initialData.name || "");
       setAmount(String(Math.abs(initialData.amount)) || ""); // Convert amount to positive string
-      setRecurrence(initialData.recurrence || "monthly");
+      setCategory(initialData.category || "monthly");
       setDescription(initialData.description || "");
     }
   }, [initialData]);
@@ -37,7 +36,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
 
   const NAME_W = 100;
   const AMOUNT_W = 100;
-  const RECURRENCE_W = 90;
+  const CATEGORY_W = 90;
 
   const handleSubmit = () => {
     const next = {};
@@ -58,7 +57,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
       amount: -Math.abs(amtNum), // Always store as a negative value
       description: description.trim() || undefined,
       type: "expense",
-      recurrence,
+      category,
     });
   };
 
@@ -74,7 +73,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
     >
       <CardContent sx={{ minWidth: 0 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-          {initialData ? "Edit recurring expense:" : "Add a new recurring expense:"}
+          {initialData ? "Edit expense:" : "Add a new expense:"}
         </Typography>
 
         <Box
@@ -86,11 +85,11 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
             minWidth: 0,
             gridTemplateColumns: {
               xs: "1fr",
-              md: `${NAME_W}px ${AMOUNT_W}px ${RECURRENCE_W}px`,
+              md: `${NAME_W}px ${AMOUNT_W}px ${CATEGORY_W}px`,
             },
             gridTemplateAreas: {
-              xs: `"name" "amount" "recurrence"`,
-              md: `"name amount recurrence"`,
+              xs: `"name" "amount" "category"`,
+              md: `"name amount category"`,
             },
           }}
         >
@@ -132,17 +131,22 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
           />
 
           <TextField
-            label="Recurrence"
+            label="Category"
             select
-            value={recurrence}
-            onChange={(e) => setRecurrence(e.target.value)}
+            value={""}
+            onChange={(e) => setCategory(e.target.value)}
             fullWidth
             size="small"
-            sx={{ gridArea: "recurrence", minWidth: 0, width: 1, ...COMPACT_INPUT_SX }}
+            sx={{ gridArea: "category", minWidth: 0, width: 1, ...COMPACT_INPUT_SX }}
           >
-            <MenuItem value="weekly">Weekly</MenuItem>
-            <MenuItem value="monthly">Monthly</MenuItem>
-            <MenuItem value="yearly">Yearly</MenuItem>
+            <MenuItem value="entertainment">Entertainment</MenuItem>
+            <MenuItem value="food_and_drink">Food&Drink</MenuItem>
+            <MenuItem value="transportation">Transportation</MenuItem>
+            <MenuItem value="home_improvement">Home</MenuItem>
+            <MenuItem value="medical">Medical</MenuItem>
+            <MenuItem value="personal_care">Personal Care</MenuItem>
+            <MenuItem value="rent_and_utilities">Utilities</MenuItem>
+            <MenuItem value="other">Other</MenuItem> {/* Added 'Other' category */}
           </TextField>
         </Box>
 

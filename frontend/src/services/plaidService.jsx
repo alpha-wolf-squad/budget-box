@@ -17,7 +17,17 @@ export const fetchTransactionsFromApi = async (api) => {
 };
 
 export const listTransactions = async (api) => {
-    const response = await api.get("http://localhost:8000/api/plaid/list-transactions/");
+    const response = await api.get("http://localhost:8000/api/plaid/transactions/");
+    return response.data.transactions;
+};
+
+export const putTransactions = async (api) => {
+    const response = await api.put("http://localhost:8000/api/plaid/transactions/");
+    return response.data.transactions;
+};
+
+export const deleteTransactions = async (api) => {
+    const response = await api.delete("http://localhost:8000/api/plaid/transactions/");
     return response.data.transactions;
 };
 

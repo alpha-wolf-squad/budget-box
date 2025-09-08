@@ -142,7 +142,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
           >
             <MenuItem value="weekly">Weekly</MenuItem>
             <MenuItem value="monthly">Monthly</MenuItem>
-            <MenuItem value="yearly">Yearly</MenuItem>
+            <MenuItem value="yearly">Annual</MenuItem>
           </TextField>
         </Box>
 
