@@ -11,7 +11,7 @@ export default function useBudget() {
     const getBudget = useCallback(
         async (date) => {
             // console.log(`Fetching budget for date: ${date}`); // Debugging log
-            const res = await api.get(`${BASE}get-budget/`, {
+            const res = await api.get(`${BASE}/entries/get-budget/`, {
                 params: { date }, // e.g. "2025-04" or "2025-04-01"
             });
             // console.log(`Response received:`, res.data); // Debugging log

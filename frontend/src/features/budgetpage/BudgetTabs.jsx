@@ -4,7 +4,7 @@ import Tabs from '@mui/material/Tabs';
 import Tab from '@mui/material/Tab';
 import Box from '@mui/material/Box';
 import BudgetPage from './BudgetPage';
-import CurrentTransactionsPage from './CurrentTransactionsPage';
+import TrackedExpensesPage from './TrackedExpensesPage';
 import TransactionsReviewPage from './TransactionsReviewPage';
 
 function CustomTabPanel(props) {
@@ -112,7 +112,7 @@ export default function BudgetTabs() {
         <BudgetPage />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={1}>
-        <CurrentTransactionsPage />
+        <TrackedExpensesPage />
       </CustomTabPanel>
       <CustomTabPanel value={value} index={2}>
         <TransactionsReviewPage />

@@ -8,6 +8,8 @@ from .views import (
     RefreshTransactions,
 )
 
+# api/plaid/
+
 urlpatterns = [
     path("create-link-token/", CreateLinkToken.as_view(), name="create_link_token"),
     path(

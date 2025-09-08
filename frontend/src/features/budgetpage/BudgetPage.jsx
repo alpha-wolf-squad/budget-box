@@ -18,40 +18,35 @@ import useBudget from "../../services/BudgetCall.jsx"
 export default function BudgetPage() {
   const [incomes, setIncomes] = useState([]);
   const [expenses, setExpenses] = useState([]);
-  
-  const addIncome = (item) => {
-    setIncomes((prev) => [item, ...prev]);
-    setShowIncomeForm(false);
-  };
-
-  const addExpense = (item) => {
-    setExpenses((prev) => [item, ...prev]);
-    setShowExpenseForm(false);
-  };
+  const [showIncomeForm, setShowIncomeForm] = useState(false); // For new entries
+  const [showExpenseForm, setShowExpenseForm] = useState(false); // For new entries
+  const [editingExpense, setEditingExpense] = useState(null); // Toggle editing expense state
+  const [showEditExpenseForm, setShowEditExpenseForm] = useState(false); // For editing
+  const [editingIncome, setEditingIncome] = useState(false); // Toggle editing income state
+  const [showEditIncomeForm, setShowEditIncomeForm] = useState(false); // For editing
 
 
   const handleEditIncome = (id) => {
-  // TODO: open edit form and load this item’s data
-  console.log("edit income", id);
-};
+    const incomeToEdit = incomes.find((income) => income.id === id);
+    setEditingIncome(incomeToEdit);
+    setShowEditIncomeForm(true);
+  };
 
-const handleDeleteIncome = (id) => {
-  setIncomes((prev) => prev.filter((x) => x.id !== id));
-};
+  const handleDeleteIncome = (id) => {
+    setIncomes((prev) => prev.filter((x) => x.id !== id));
+  };
 
-const handleEditExpense = (id) => {
-  // TODO: open edit form and load this item’s data
-  console.log("edit expense", id);
-};
+  const handleEditExpense = (id) => {
+    const expenseToEdit = expenses.find((expense) => expense.id === id);
+    setEditingExpense(expenseToEdit);
+    setShowEditExpenseForm(true);
+  };
 
-const handleDeleteExpense = (id) => {
-  setExpenses((prev) => prev.filter((x) => x.id !== id));
-};
+  const handleDeleteExpense = (id) => {
+    setExpenses((prev) => prev.filter((x) => x.id !== id));
+  };
   
-
-  const [showIncomeForm, setShowIncomeForm] = useState(false);
-  const [showExpenseForm, setShowExpenseForm] = useState(false);
-
+  
   const incomeTotal = useMemo(
     () => incomes.reduce((s, x) => s + parseFloat(x.amount), 0),
     [incomes]
@@ -154,29 +149,58 @@ const handleDeleteExpense = (id) => {
         {/* LEFT: Income */}
         <Box sx={{ minWidth: 0 }}>
           <Stack spacing={2}>
-            {showIncomeForm ? (
-              <IncomeCardForm
-                sx={{ minWidth: 0 }}
-                onCancel={() => setShowIncomeForm(false)}
-                onSubmit={addIncome}
-              />
-            ) : (
+            {/* Add Income Button */}
+            {!showIncomeForm && (
               <AddIncomeCard onClick={() => setShowIncomeForm(true)} />
             )}
 
-            {incomes.map((i) => (
-              <StreamCard
-                key={i.id}
-                id={i.id}
-                name={i.name}
-                amount={i.amount}
-                recurrence={i.recurrence}
-                description={i.description}
-                type="income"
-                onDelete={handleDeleteIncome}
-                onEdit={handleEditIncome}
+            {/* Add Income Form */}
+            {showIncomeForm && (
+              <IncomeCardForm
+                sx={{ minWidth: 0 }}
+                onCancel={() => {
+                  setShowIncomeForm(false);
+                }}
+                onSubmit={(newIncome) => {
+                  setIncomes((prev) => [...prev, { ...newIncome, id: Date.now() }]);
+                  setShowIncomeForm(false);
+                }}
               />
-            ))}
+            )}
+
+            {/* Render Existing Incomes */}
+            {incomes.map((income) =>
+              editingIncome?.id === income.id && showEditIncomeForm ? (
+                <IncomeCardForm
+                  key={income.id}
+                  sx={{ minWidth: 0 }}
+                  onCancel={() => {
+                    setShowIncomeForm(false);
+                    setEditingIncome(null);
+                  }}
+                  onSubmit={(updatedIncome) => {
+                    setIncomes((prev) =>
+                      prev.map((e) => (e.id === updatedIncome.id ? updatedIncome : e))
+                    );
+                    setShowIncomeForm(false);
+                    setEditingIncome(null);
+                  }}
+                  initialData={editingIncome}
+                />
+              ) : (
+                <StreamCard
+                  key={income.id}
+                  id={income.id}
+                  name={income.name}
+                  amount={income.amount}
+                  recurrence={income.recurrence}
+                  description={income.description}
+                  type="income"
+                  onDelete={handleDeleteIncome}
+                  onEdit={handleEditIncome}
+                />
+              )
+            )}
           </Stack>
         </Box>
 
@@ -194,29 +218,58 @@ const handleDeleteExpense = (id) => {
         {/* RIGHT: Expenses */}
         <Box sx={{ minWidth: 0 }}>
           <Stack spacing={2}>
-
-                        {showExpenseForm ? (
-              <ExpenseCardForm
-                sx={{ minWidth: 0 }}
-                onCancel={() => setShowExpenseForm(false)}
-                onSubmit={addExpense}
-              />
-            ) : (
+            {/* Add Expense Button */}
+            {!showExpenseForm && (
               <AddExpenseCard onClick={() => setShowExpenseForm(true)} />
             )}
-            {expenses.map((e) => (
-              <StreamCard
-                key={e.id}
-                id={e.id}
-                name={e.name}
-                amount={e.amount}
-                recurrence={e.recurrence}
-                description={e.description}
-                type="expense"
-                onDelete={handleDeleteExpense}
-                onEdit={handleEditExpense}
+
+            {/* Add Expense Form */}
+            {showExpenseForm && (
+              <ExpenseCardForm
+                sx={{ minWidth: 0 }}
+                onCancel={() => {
+                  setShowExpenseForm(false);
+                }}
+                onSubmit={(newExpense) => {
+                  setExpenses((prev) => [...prev, { ...newExpense, id: Date.now() }]);
+                  setShowExpenseForm(false);
+                }}
               />
-            ))}
+            )}
+
+            {/* Render Existing Expenses */}
+            {expenses.map((expense) =>
+              editingExpense?.id === expense.id && showEditExpenseForm ? (
+                <ExpenseCardForm
+                  key={expense.id}
+                  sx={{ minWidth: 0 }}
+                  onCancel={() => {
+                    setShowExpenseForm(false);
+                    setEditingExpense(null);
+                  }}
+                  onSubmit={(updatedExpense) => {
+                    setExpenses((prev) =>
+                      prev.map((e) => (e.id === updatedExpense.id ? updatedExpense : e))
+                    );
+                    setShowExpenseForm(false);
+                    setEditingExpense(null);
+                  }}
+                  initialData={editingExpense}
+                />
+              ) : (
+                <StreamCard
+                  key={expense.id}
+                  id={expense.id}
+                  name={expense.name}
+                  amount={expense.amount}
+                  recurrence={expense.recurrence}
+                  description={expense.description}
+                  type="expense"
+                  onDelete={handleDeleteExpense}
+                  onEdit={handleEditExpense}
+                />
+              )
+            )}
           </Stack>
         </Box>
       </Box>

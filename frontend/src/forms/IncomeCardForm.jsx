@@ -8,22 +8,29 @@ import {
   Card,
   CardContent,
   CardActions,
+  InputAdornment, // Added InputAdornment import
 } from "@mui/material";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-export default function IncomeCardForm({ onCancel, onSubmit, sx }) {
-  const [category, setName] = useState("");
+export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData }) {
+  const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [recurrence, setRecurrence] = useState("monthly");
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState({});
 
+  // Populate form fields with initial data when editing
+  useEffect(() => {
+    if (initialData) {
+      setName(initialData.name || "");
+      setAmount(String(Math.abs(initialData.amount)) || ""); // Convert amount to positive string
+      setRecurrence(initialData.recurrence || "monthly");
+      setDescription(initialData.description || "");
+    }
+  }, [initialData]);
+
   const COMPACT_INPUT_SX = {
-    "& .MuiInputBase-input": {
-      fontSize: 14,
-      paddingTop: 0.75,
-      paddingBottom: 0.75,
-    },
+    "& .MuiInputBase-input": { fontSize: 14, paddingTop: "6px", paddingBottom: "6px" },
     "& .MuiInputLabel-root": { fontSize: 13 },
     "& .MuiFormHelperText-root": { fontSize: 11 },
   };
@@ -34,17 +41,21 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx }) {
 
   const handleSubmit = () => {
     const next = {};
-    const amt = Number(amount);
-    if (!amount.trim() || Number.isNaN(amt))
-      next.amount = "Valid amount is required.";
-    else if (amt <= 0) next.amount = "Amount must be greater than 0.";
+    const raw = amount.trim().replace(",", ".");
+    const amtNum = Number(raw);
+
+    if (!raw || Number.isNaN(amtNum)) next.amount = "Valid amount is required.";
+    else if (amtNum <= 0) next.amount = "Amount must be greater than 0.";
+
+    if (!name.trim()) next.name = "Please enter a valid name.";
+
     setErrors(next);
     if (Object.keys(next).length) return;
 
     onSubmit({
-      id: crypto?.randomUUID?.() ?? String(Date.now()),
-      category: category.trim(),
-      amount: amt,
+      id: (initialData?.id || crypto?.randomUUID?.()) ?? String(Date.now()), // Keep the same ID if editing
+      name: name.trim(),
+      amount: Math.abs(amtNum),
       description: description.trim() || undefined,
       type: "income",
       recurrence,
@@ -56,17 +67,15 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx }) {
       sx={{
         width: "100%",
         minWidth: 0,
-        ...sx,
         borderLeft: 4,
         borderColor: "success.main",
+        ...sx,
       }}
     >
       <CardContent sx={{ minWidth: 0 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-          Add a new income stream:
+          {initialData ? "Edit recurring expense:" : "Add a new recurring expense:"}
         </Typography>
-
-        {/* Top row: identical placement at all sizes */}
 
         <Box
           sx={{
@@ -75,52 +84,53 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx }) {
             columnGap: 2,
             rowGap: 2,
             minWidth: 0,
-
-            // xs: stack; md: 3 columns with fixed Amount/Recurrence; lg+: same
             gridTemplateColumns: {
               xs: "1fr",
               md: `${NAME_W}px ${AMOUNT_W}px ${RECURRENCE_W}px`,
             },
             gridTemplateAreas: {
-              xs: `"category" "amount" "recurrence"`,
-              md: `"category amount recurrence"`,
+              xs: `"name" "amount" "recurrence"`,
+              md: `"name amount recurrence"`,
             },
           }}
         >
-          {/* Name */}
           <TextField
-            label="Category"
-            value={category}
+            label="Name"
+            value={name}
             onChange={(e) => setName(e.target.value)}
-            error={!!errors.category}
-            helperText={errors.category}
+            error={!!errors.name}
+            helperText={errors.name}
             fullWidth
             size="small"
-            sx={{ gridArea: "category", minWidth: 0, ...COMPACT_INPUT_SX }}
+            sx={{ gridArea: "name", minWidth: 0, ...COMPACT_INPUT_SX }}
           />
 
-          {/* Amount */}
           <TextField
             label="Amount *"
             value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            onChange={(e) => {
+              let v = e.target.value.replace(/[^\d.,]/g, "");
+              const parts = v.split(/[.,]/);
+              if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("");
+              setAmount(v);
+            }}
             error={!!errors.amount}
             helperText={errors.amount}
             type="text"
             size="small"
             fullWidth
-            sx={{
-              gridArea: "amount",
-              minWidth: 0,
-              width: 1,
-              ...COMPACT_INPUT_SX,
-            }}
+            sx={{ gridArea: "amount", minWidth: 0, width: 1, ...COMPACT_INPUT_SX }}
             slotProps={{
-              htmlInput: { step: "0.01", min: 0, inputMode: "decimal" },
+              input: {
+                startAdornment: <InputAdornment position="start">−</InputAdornment>,
+              },
+              htmlInput: {
+                inputMode: "decimal",
+                pattern: "[0-9]*[.,]?[0-9]*",
+              },
             }}
           />
 
-          {/* Recurrence */}
           <TextField
             label="Recurrence"
             select
@@ -128,12 +138,7 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx }) {
             onChange={(e) => setRecurrence(e.target.value)}
             fullWidth
             size="small"
-            sx={{
-              gridArea: "recurrence",
-              minWidth: 0,
-              width: 1,
-              ...COMPACT_INPUT_SX,
-            }}
+            sx={{ gridArea: "recurrence", minWidth: 0, width: 1, ...COMPACT_INPUT_SX }}
           >
             <MenuItem value="weekly">Weekly</MenuItem>
             <MenuItem value="monthly">Monthly</MenuItem>
@@ -141,7 +146,6 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx }) {
           </TextField>
         </Box>
 
-        {/* Description */}
         <TextField
           label="Description (optional)"
           value={description}

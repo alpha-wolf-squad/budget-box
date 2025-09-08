@@ -1,64 +1,63 @@
-// context/UserFinanceContext.jsx
-import {
-  createContext,
-  useContext,
-  useState,
-  useEffect,
-  useCallback,
-  useRef,
-} from "react";
+import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { useAuthenticatedApi } from "../services/hooks.js";
-// import { useUser } from "@clerk/clerk-react";
+import { listTransactions } from "../services/plaidService.jsx";
+
+// Create a context for UserPlaid
 const UserPlaidContext = createContext();
+let didFetch = false
 
-let didFetch = false;
-
+// Provider component for UserPlaidContext
 export const UserPlaidProvider = ({ children }) => {
+  // Get authenticated API and sign-in status
   const { api, isSignedIn } = useAuthenticatedApi();
-  const [transactions, setPlaidTransactions] = useState([]);
+  
+  // State to hold transactions and loading status
+  const [plaidTransactions, setPlaidTransactions] = useState([]);
   const [loadingTransactions, setLoadingTransactions] = useState(false);
 
-  // Fetch transactions from backend
+  // Function to fetch transactions from the API
   const fetchTransactions = useCallback(async () => {
     try {
+      // Set loading state to true before fetching
       setLoadingTransactions(true);
-      const response = await api.get(
-        "http://localhost:8000/api/plaid/list-transactions/",
-      );
-      if (response.status === 200) {
-        setPlaidTransactions((prev) => {
-          // Merge new transactions without duplicating
-          const existingIds = new Set(prev.map((tx) => tx.id));
-          const newTxs = response.data.transactions.filter(
-            (tx) => !existingIds.has(tx.id),
-          );
-          return [...prev, ...newTxs];
-        });
-      }
+      
+      // Fetch new transactions using the API
+      const newTransactions = await listTransactions(api);
+      
+      // Update the state with unique transactions
+      setPlaidTransactions((prev) => {
+        // Create a set of existing transaction IDs for uniqueness check
+        const existingIds = new Set(prev.map((tx) => tx.id));
+        
+        // Filter out transactions that already exist
+        const uniqueTransactions = newTransactions.filter((tx) => !existingIds.has(tx.id));
+        
+        // Return the updated list of transactions
+        return [...prev, ...uniqueTransactions];
+      });
     } catch (error) {
+      // Log any errors that occur during fetching
       console.error("Error fetching transactions:", error);
     } finally {
+      // Set loading state to false after fetching is complete
       setLoadingTransactions(false);
     }
   }, [api]);
 
-  // Auto-fetch on mount
+  // Effect to fetch transactions when the user is signed in
   useEffect(() => {
-    // console.log("UserPlaidProvider rendered");
     if (!isSignedIn) return;
-
     if (!didFetch) {
       fetchTransactions();
       didFetch = true;
     }
   }, [fetchTransactions, isSignedIn]);
-
-  //Used to show transactions are fetching
-  console.log("Current transactions:", transactions);
+  console.log(plaidTransactions)
+  // Provide the context value to children components
   return (
     <UserPlaidContext.Provider
       value={{
-        transactions,
+        plaidTransactions,
         setPlaidTransactions,
         fetchTransactions,
         loadingTransactions,
@@ -69,4 +68,5 @@ export const UserPlaidProvider = ({ children }) => {
   );
 };
 
+// Custom hook to use UserPlaidContext
 export const useUserPlaid = () => useContext(UserPlaidContext);
