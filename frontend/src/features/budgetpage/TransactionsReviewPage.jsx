@@ -9,8 +9,7 @@ import {
   } from "@mui/material";
 import { useMemo, useState, useContext } from "react";
 import StreamCard from "./StreamCard.jsx";
-import AddExpenseCard from "./AddExpenseCard.jsx";
-import ExpenseCardForm from "../../forms/ExpenseCardForm.jsx";
+import ReviewExpenseCardForm from "../../forms/ReviewExpenseCardForm.jsx";
 import PlaidLinkButton from "./PlaidLink.jsx";
 import {refreshTransactions} from "../../services/plaidService.jsx"
 import { useAuthenticatedApi } from "../../services/hooks.js";
@@ -60,7 +59,7 @@ export default function TransactionsReviewPage() {
       <Box sx={{ minWidth: 0 }}>
         <Stack spacing={2}>
           {plaidTransactions.map((tx) => editingExpense?.id === tx.id && showEditExpenseForm ? ( // tx is transaction
-            <ExpenseCardForm
+            <ReviewExpenseCardForm
             key={tx.id}
             sx={{ minWidth: 0 }}
             onCancel={() => {
