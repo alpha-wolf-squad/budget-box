@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta  # Import datetime and timedelta
+
 import plaid
 from django.contrib.auth import get_user_model
 from django.shortcuts import render
@@ -5,12 +7,15 @@ from django.utils import timezone
 from plaid.api import plaid_api
 from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.country_code import CountryCode
-from plaid.model.item_public_token_exchange_request import ItemPublicTokenExchangeRequest
+from plaid.model.item_public_token_exchange_request import \
+    ItemPublicTokenExchangeRequest
 from plaid.model.link_token_create_request import LinkTokenCreateRequest
-from plaid.model.link_token_create_request_user import LinkTokenCreateRequestUser
+from plaid.model.link_token_create_request_user import \
+    LinkTokenCreateRequestUser
 from plaid.model.products import Products
-from plaid.model.transactions_sync_request import TransactionsSyncRequest
 from plaid.model.transactions_get_request import TransactionsGetRequest
+from plaid.model.transactions_refresh_request import TransactionsRefreshRequest
+from plaid.model.transactions_sync_request import TransactionsSyncRequest
 from rest_framework import permissions
 from rest_framework import status as s
 from rest_framework import viewsets
@@ -20,13 +25,15 @@ from rest_framework.views import APIView
 from budgetbox_project.decorators import clerk_auth_required
 from budgetbox_project.settings import PLAID_CLIENT_ID, PLAID_SANDBOX_KEY
 from clerk_app.models import BudgetBoxUser
-from plaid.model.transactions_refresh_request import TransactionsRefreshRequest
+from entries.models import Budget, ExpenseStream
+
 from .models import (BankAccount, Transaction, create_bank_account_from_plaid,
                      create_transaction_from_plaid,
                      delete_transaction_from_plaid,
                      update_transaction_from_plaid)
+from .serializers import (TransactionApprovalSerializer, TransactionSerializer,
+                          TransactionUpdateSerializer)
 
-from datetime import datetime, timedelta  # Import datetime and timedelta
 # Create your views here.
 
 User = get_user_model()
@@ -245,35 +252,247 @@ class GetTransactions(APIView):
             print(traceback.format_exc())
             return Response({"error": str(e)}, status=400)
 
-class ListTransactions(APIView):
-    @clerk_auth_required
-    def get(self, request):
-        print("List transactions activated")
-        try:
-            user = User.objects.get(clerk_user_id=request.clerk_user_id)
-            transactions = user.transactions.all()[:50]  # Last 3 transactions
+class Transactions(APIView):
+   """
+   Handle all CRUD operations for transactions
+   GET: List transactions with optional filtering
+   POST: Approve transaction and create ExpenseStream entry
+   PUT: Update transaction details
+   DELETE: Remove transaction
+   """
+   
+   @clerk_auth_required
+   def get(self, request):
+       """Get user's transactions with optional filtering"""
+       try:
+           user = User.objects.get(clerk_user_id=request.clerk_user_id)
+           
+           # NOTE: Extract query parameters for filtering transactions
+           limit = int(request.query_params.get('limit', 10))  # Default to 10
+           category = request.query_params.get('category')
+           date_from = request.query_params.get('date_from')
+           date_to = request.query_params.get('date_to')
+           
+           # NOTE: Start with user's transactions and apply filters
+           transactions = user.transactions.all()
+           
+           if category:
+               transactions = transactions.filter(category__icontains=category)
+           
+           if date_from:
+               transactions = transactions.filter(authorized_date__gte=date_from)
+           
+           if date_to:
+               transactions = transactions.filter(authorized_date__lte=date_to)
+           
+           transactions = transactions[:limit]
+           
+           # NOTE: Serialize and return transaction data
+           serializer = TransactionSerializer(transactions, many=True)
+           
+           return Response({
+               "transactions": serializer.data,
+               "count": len(serializer.data)
+           })
+           
+       except User.DoesNotExist:
+           return Response(
+               {"error": "User not found"}, 
+               status=s.HTTP_404_NOT_FOUND
+           )
+       except Exception as e:
+           return Response(
+               {"error": str(e)}, 
+               status=s.HTTP_400_BAD_REQUEST
+           )
 
-            transaction_data = []
-            for transaction in transactions:
-                transaction_data.append(
-                    {
-                        "id": transaction.id,
-                        "merchant_name": transaction.merchant_name,
-                        "amount": str(transaction.amount),
-                        "authorized_date": str(transaction.authorized_date),  # Primary date field
-                        "date_paid": str(transaction.date_paid) if transaction.date_paid else None,  # Optional
-                        "category": transaction.category,
-                        "created_at": transaction.created_at.isoformat(),
-                    }
-                )
-            
-            return Response(
-                {"transactions": transaction_data, "count": len(transaction_data)}
-            )
-        except Exception as e:
-            return Response({"error": str(e)}, status=s.HTTP_400_BAD_REQUEST)
+   @clerk_auth_required
+   def post(self, request):
+       """Approve a transaction and create an ExpenseStream entry"""
+       try:
+           user = User.objects.get(clerk_user_id=request.clerk_user_id)
+           
+           # NOTE: Validate request data for transaction approval
+           serializer = TransactionApprovalSerializer(data=request.data)
+           if not serializer.is_valid():
+               print(f"Validation failed. Errors: {serializer.errors}")
+               print(f"Request data: {request.data}")
+               return Response(
+                   {"error": serializer.errors}, 
+                   status=s.HTTP_400_BAD_REQUEST
+               )
+           
+           # NOTE: Extract validated data
+           validated_data = serializer.validated_data
+           transaction_id = validated_data['transaction_id']
+           description = validated_data.get('description', '')
+           recurrence = validated_data.get('recurrence', False)
+           
+           # NOTE: Get transaction and verify user ownership
+           try:
+               transaction = Transaction.objects.get(id=transaction_id, user=user)
+           except Transaction.DoesNotExist:
+               return Response(
+                   {"error": "Transaction not found or access denied"}, 
+                   status=s.HTTP_404_NOT_FOUND
+               )
+           
+           # NOTE: Create or get budget for transaction's month
+           transaction_date = transaction.authorized_date or transaction.date_paid
+           if not transaction_date:
+               return Response(
+                   {"error": "Transaction has no valid date"}, 
+                   status=s.HTTP_400_BAD_REQUEST
+               )
+           
+           budget_date = transaction_date.replace(day=1)
+           budget, created = Budget.objects.get_or_create(
+               budget_box_user=user,
+               date=budget_date
+           )
+           
+           # NOTE: Create ExpenseStream entry from transaction data
+           expense_amount = -abs(transaction.amount)
+           
+           expense_stream = ExpenseStream.objects.create(
+               budget=budget,
+               merchant_name=transaction.merchant_name,
+               description=description if description else transaction.merchant_name,
+               amount=expense_amount,
+               category=transaction.category,
+               recurrence=recurrence
+           )
+           
+           return Response({
+               "message": "Transaction approved and added to budget successfully",
+               "expense_stream": {
+                   "id": expense_stream.id,
+                   "merchant_name": expense_stream.merchant_name,
+                   "description": expense_stream.description,
+                   "amount": str(expense_stream.amount),
+                   "category": expense_stream.category,
+                   "recurrence": expense_stream.recurrence,
+                   "budget_month": budget_date.strftime('%Y-%m')
+               },
+               "original_transaction": {
+                   "id": transaction.id,
+                   "merchant_name": transaction.merchant_name,
+                   "amount": str(transaction.amount),
+                   "date": str(transaction_date)
+               }
+           }, status=s.HTTP_201_CREATED)
+           
+       except User.DoesNotExist:
+           return Response(
+               {"error": "User not found"}, 
+               status=s.HTTP_404_NOT_FOUND
+           )
+       except Exception as e:
+           return Response(
+               {"error": str(e)}, 
+               status=s.HTTP_400_BAD_REQUEST
+           )
 
+   @clerk_auth_required
+   def put(self, request):
+       """Update a transaction"""
+       try:
+           user = User.objects.get(clerk_user_id=request.clerk_user_id)
+           transaction_id = request.data.get('id')
+           
+           if not transaction_id:
+               return Response(
+                   {"error": "Transaction ID is required"}, 
+                   status=s.HTTP_400_BAD_REQUEST
+               )
+           
+           # NOTE: Get transaction and verify user ownership
+           try:
+               transaction = Transaction.objects.get(id=transaction_id, user=user)
+           except Transaction.DoesNotExist:
+               return Response(
+                   {"error": "Transaction not found or access denied"}, 
+                   status=s.HTTP_404_NOT_FOUND
+               )
+           
+           # NOTE: Validate and apply updates to transaction
+           serializer = TransactionUpdateSerializer(
+               transaction, 
+               data=request.data, 
+               partial=True
+           )
+           
+           if serializer.is_valid():
+               serializer.save()
+               
+               response_serializer = TransactionSerializer(transaction)
+               return Response({
+                   "message": "Transaction updated successfully",
+                   "transaction": response_serializer.data
+               })
+           
+           return Response(
+               {"error": serializer.errors}, 
+               status=s.HTTP_400_BAD_REQUEST
+           )
+           
+       except User.DoesNotExist:
+           return Response(
+               {"error": "User not found"}, 
+               status=s.HTTP_404_NOT_FOUND
+           )
+       except Exception as e:
+           return Response(
+               {"error": str(e)}, 
+               status=s.HTTP_400_BAD_REQUEST
+           )
 
+   @clerk_auth_required
+   def delete(self, request):
+       """Delete a transaction"""
+       try:
+           user = User.objects.get(clerk_user_id=request.clerk_user_id)
+           transaction_id = request.data.get('id')
+           
+           if not transaction_id:
+               return Response(
+                   {"error": "Transaction ID is required"}, 
+                   status=s.HTTP_400_BAD_REQUEST
+               )
+           
+           # NOTE: Get transaction and verify user ownership
+           try:
+               transaction = Transaction.objects.get(id=transaction_id, user=user)
+           except Transaction.DoesNotExist:
+               return Response(
+                   {"error": "Transaction not found or access denied"}, 
+                   status=s.HTTP_404_NOT_FOUND
+               )
+           
+           # NOTE: Store transaction info before deletion for response
+           transaction_info = {
+               "id": transaction.id,
+               "merchant_name": transaction.merchant_name,
+               "amount": str(transaction.amount)
+           }
+           
+           transaction.delete()
+           
+           return Response({
+               "message": "Transaction deleted successfully",
+               "deleted_transaction": transaction_info
+           }, status=s.HTTP_204_NO_CONTENT)
+           
+       except User.DoesNotExist:
+           return Response(
+               {"error": "User not found"}, 
+               status=s.HTTP_404_NOT_FOUND
+           )
+       except Exception as e:
+           return Response(
+               {"error": str(e)}, 
+               status=s.HTTP_400_BAD_REQUEST
+           )
 
 class RefreshTransactions(APIView):
     @clerk_auth_required
