@@ -7,34 +7,23 @@ import {
     Stack,
     Paper,
   } from "@mui/material";
-  import { useMemo, useState } from "react";
-  import StreamCard from "./StreamCard.jsx";
-  import AddExpenseCard from "./AddExpenseCard.jsx";
-  import ReviewExpenseCardForm from "../../forms/ReviewExpenseCardForm.jsx";
-  import PlaidLinkButton from "./PlaidLink.jsx";
-  import useRefreshTransactions from "../../services/RefreshTransactions.jsx"; // fetch method to refresh transactions
+import { useMemo, useState, useContext } from "react";
+import StreamCard from "./StreamCard.jsx";
+import AddExpenseCard from "./AddExpenseCard.jsx";
+import ReviewExpenseCardForm from "../../forms/ReviewExpenseCardForm.jsx";
+import PlaidLinkButton from "./PlaidLink.jsx";
+import {refreshTransactions} from "../../services/plaidService.jsx"
+import { useAuthenticatedApi } from "../../services/hooks.js";
+import { useUserPlaid } from "../../context/UserPlaidContext.jsx";
 
 
 export default function TransactionsReviewPage() {
   const [plaidConnected, setPlaidConnected] = useState(false);
-  const [incomes, setIncomes] = useState([]);
-  const [expenses, setExpenses] = useState([]);
   const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const { api } = useAuthenticatedApi();
+  const { plaidTransactions } = useUserPlaid();
 
-  const addIncome = (item) => {
-    setIncomes((prev) => [item, ...prev]);
-    setShowIncomeForm(false);
-  };
-
-  const addExpense = (item) => {
-    setExpenses((prev) => [item, ...prev]);
-    setShowExpenseForm(false);
-  };
-
-
-  const handleDeleteIncome = (id) => {
-    setIncomes((prev) => prev.filter((x) => x.id !== id));
-  };
+  console.log("Plaid Transactions:", plaidTransactions);
 
   const handleEditExpense = (id) => {
     // TODO: open edit form and load this item’s data
@@ -45,25 +34,9 @@ export default function TransactionsReviewPage() {
     setExpenses((prev) => prev.filter((x) => x.id !== id));
   };
 
-  const incomeTotal = useMemo(
-    () => incomes.reduce((s, x) => s + x.amount, 0),
-    [incomes]
-  );
-
-  const expenseTotal = useMemo(
-    () => expenses.reduce((s, x) => s + x.amount, 0),
-    [expenses]
-  );
-
-  const net = useMemo(
-    () => incomeTotal - expenseTotal,
-    [incomeTotal, expenseTotal]
-  );
-
-
   return (
   <>
-    {!plaidConnected ? (
+    {plaidConnected ? ( // Make is !plaidConnected after completing the dev
       <>
         <Box
           sx={{
@@ -82,30 +55,22 @@ export default function TransactionsReviewPage() {
       {/* Expenses */}
       <Box sx={{ minWidth: 0 }}>
         <Stack spacing={2}>
-          {showExpenseForm ? (
-            <ReviewExpenseCardForm
-              sx={{ minWidth: 0 }}
-              onCancel={() => setShowExpenseForm(false)}
-              onSubmit={addExpense}
-            />
-          ) : (
-            <AddExpenseCard onClick={() => setShowExpenseForm(true)} />
-          )}
-          {expenses.map((e) => (
+          {plaidTransactions.map((tx) => ( // tx is transaction
             <StreamCard
-              key={e.id}
-              id={e.id}
-              name={e.name}
-              amount={e.amount}
-              description={e.description}
-              type="expense"
+              key={tx.id}
+              id={tx.id}
+              name={tx.merchant_name}
+              amount={tx.amount}
+              // description={e.description}
+              // type="expense"
+              // category:{e.category}
               onDelete={handleDeleteExpense}
               onEdit={handleEditExpense}
             />
           ))}
         </Stack>
       </Box>
-      <Button>Refresh</Button>
+      <Button onClick={() => refreshTransactions(api)}>Refresh</Button>
       </>
     )}
   </>

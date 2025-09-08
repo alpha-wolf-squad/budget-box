@@ -20,7 +20,7 @@ from rest_framework.views import APIView
 from budgetbox_project.decorators import clerk_auth_required
 from budgetbox_project.settings import PLAID_CLIENT_ID, PLAID_SANDBOX_KEY
 from clerk_app.models import BudgetBoxUser
-
+from plaid.model.transactions_refresh_request import TransactionsRefreshRequest
 from .models import (BankAccount, Transaction, create_bank_account_from_plaid,
                      create_transaction_from_plaid,
                      delete_transaction_from_plaid,
@@ -272,89 +272,182 @@ class ListTransactions(APIView):
         except Exception as e:
             return Response({"error": str(e)}, status=s.HTTP_400_BAD_REQUEST)
 
-class RefreshTransactions(APIView):
 
+
+class RefreshTransactions(APIView):
     @clerk_auth_required
     def get(self, request):
         try:
+            print("Starting RefreshTransactions - forcing Plaid data refresh")
             user = User.objects.get(clerk_user_id=request.clerk_user_id)
+            print(f"User retrieved: {user}")
 
             bank_accounts = user.bank_accounts.filter(is_active=True)
+            print(f"Active bank accounts found: {bank_accounts.count()}")
 
             if not bank_accounts.exists():
+                print("No bank accounts linked")
                 return Response(
-                    {"error": "No bank account linked. Please link an account first."}, status=s.HTTP_400_BAD_REQUEST
+                    {"error": "No bank account linked. Please link an account first."}, 
+                    status=s.HTTP_400_BAD_REQUEST
                 )
             
-            start_date = datetime.now() - timedelta(days=7) # new transactions start from one week ago
-            end_date = datetime.now() # new transactions end at pull time
             all_new_transactions = []
+            refresh_errors = []
 
             for bank_account in bank_accounts:
+                print(f"\nProcessing bank account: {bank_account.account_name}")
+                
                 if not bank_account.plaid_access_token:
+                    print(f"Skipping {bank_account.account_name} - no access token")
                     continue
 
-                transactions_request = TransactionsGetRequest(
-                    access_token=bank_account.plaid_access_token,
-                    start_date=start_date(),
-                    end_date=end_date(),
-                )
-
-                response = plaid_client.transactions_get(transactions_request)
-                transactions_data = response["transactions"]
-
-                for transaction_data in transactions_data[:10]:
-                    transaction, created = Transaction.objects.get_or_create(
-                        plaid_transaction_id=transaction_data["transaction_id"],
-                        defaults={
-                            "user": user,
-                            "bank_account": bank_account,
-                            "amount": abs(transaction_data["amount"]),
-                            "merchant_name": transaction_data.get("merchant_name") or transaction_data.get("name") or "Unknown Merchant",
-                            "date_paid": transaction_data["date"],
-                            "category": transaction_data.get("personal_finance_category", {}).get("primary", "Uncategorized")
-                        }
+                try:
+                    # Step 1: Force Plaid to refresh the account data
+                    print(f"Forcing Plaid refresh for {bank_account.account_name}")
+                    refresh_request = TransactionsRefreshRequest(
+                        access_token=bank_account.plaid_access_token
                     )
+                    plaid_client.transactions_refresh(refresh_request)
+                    print("Plaid refresh request sent successfully")
+                    
+                    # Step 2: Wait a moment for Plaid to process the refresh
+                    # print("Waiting 3 seconds for Plaid to process refresh...")
+                    # import time
+                    # time.sleep(3)
+                    
+                    # Step 3: Sync the updated data using transactions/sync
+                    cursor = bank_account.sync_cursor or ""
+                    print(f"Starting sync with cursor: {cursor or 'None (first sync)'}")
+                    
+                    added = []
+                    modified = []
+                    removed = []
+                    has_more = True
+                    page_count = 0
 
-                    all_new_transactions.append({
-                        "id": transaction.id,
-                        "merchant_name": transaction.merchant_name,
-                        "amount": str(transaction.amount),
-                        "date_paid": str(transaction.date_paid),
-                        "category": transaction.category,
-                        "account": bank_account.account_name,
-                        "is_new": created # tells frontend if this is new
-                    })
+                    # Paginate through all sync updates
+                    while has_more:
+                        page_count += 1
+                        print(f"Fetching sync page {page_count}")
+                        
+                        sync_request = TransactionsSyncRequest(
+                            access_token=bank_account.plaid_access_token,
+                            cursor=cursor,
+                            count=500
+                        )
+                        
+                        response = plaid_client.transactions_sync(sync_request)
+                        
+                        page_added = response.get('added', [])
+                        page_modified = response.get('modified', [])
+                        page_removed = response.get('removed', [])
+                        
+                        print(f"Page {page_count} results:")
+                        print(f"   Added: {len(page_added)} transactions")
+                        print(f"   Modified: {len(page_modified)} transactions")
+                        print(f"   Removed: {len(page_removed)} transactions")
+                        
+                        added.extend(page_added)
+                        modified.extend(page_modified)
+                        removed.extend(page_removed)
+                        
+                        has_more = response.get('has_more', False)
+                        cursor = response.get('next_cursor')
+                        
+                        print(f"Has more pages: {has_more}")
 
-            all_new_transactions.sort(key=lambda x: x["date_paid"], reverse=True) # sorts by date paid
+                    print(f"Sync pagination complete for {bank_account.account_name}")
+                    print(f"Total results: {len(added)} added, {len(modified)} modified, {len(removed)} removed")
 
-            return Response({
-                "message": f"Retrieved {len(all_new_transactions)} transactions.",
+                    # Step 4: Process ADDED transactions (these are the "new" ones for the response)
+                    print(f"Processing {len(added)} added transactions...")
+                    for i, transaction_data in enumerate(added, 1):
+                        print(f"   Processing added transaction {i}/{len(added)}: {transaction_data.get('transaction_id')}")
+                        
+                        transaction, created = create_transaction_from_plaid(
+                            user, bank_account, transaction_data
+                        )
+                        
+                        if created:
+                            print(f"   Created new transaction: {transaction.merchant_name} - ${transaction.amount}")
+                            all_new_transactions.append({
+                                "id": transaction.id,
+                                "merchant_name": transaction.merchant_name,
+                                "amount": str(transaction.amount),
+                                "authorized_date": str(transaction.authorized_date),
+                                "date_paid": str(transaction.date_paid) if transaction.date_paid else None,
+                                "category": transaction.category,
+                                "account": bank_account.account_name,
+                                "is_new": True
+                            })
+                        else:
+                            print(f"   Transaction already existed: {transaction.merchant_name}")
+
+                    # Step 5: Process MODIFIED transactions (update existing records)
+                    print(f"Processing {len(modified)} modified transactions...")
+                    for i, transaction_data in enumerate(modified, 1):
+                        print(f"   Processing modified transaction {i}/{len(modified)}: {transaction_data.get('transaction_id')}")
+                        
+                        existing_transaction = Transaction.objects.filter(
+                            plaid_transaction_id=transaction_data['transaction_id']
+                        ).first()
+                        
+                        if existing_transaction:
+                            print(f"   Updating existing transaction: {existing_transaction.merchant_name}")
+                            update_transaction_from_plaid(existing_transaction, transaction_data)
+                        else:
+                            print(f"   Modified transaction not found in database: {transaction_data['transaction_id']}")
+
+                    # Step 6: Process REMOVED transactions (delete from database)
+                    print(f"Processing {len(removed)} removed transactions...")
+                    for i, removed_data in enumerate(removed, 1):
+                        print(f"   Processing removed transaction {i}/{len(removed)}: {removed_data.get('transaction_id')}")
+                        delete_transaction_from_plaid(removed_data['transaction_id'])
+
+                    # Step 7: Save the updated cursor and timestamp
+                    print(f"Saving updated sync cursor for {bank_account.account_name}")
+                    bank_account.sync_cursor = cursor
+                    bank_account.last_synced = timezone.now()
+                    bank_account.save()
+                    print(f"Cursor saved successfully")
+
+                except Exception as account_error:
+                    error_msg = f"Error refreshing {bank_account.account_name}: {str(account_error)}"
+                    print(error_msg)
+                    refresh_errors.append(error_msg)
+                    continue
+
+            # Sort new transactions by date
+            print(f"Sorting {len(all_new_transactions)} new transactions by date...")
+            all_new_transactions.sort(key=lambda x: x.get("date_paid") or x.get("authorized_date"), reverse=True)
+
+            print(f"\nREFRESH SUMMARY:")
+            print(f"   Bank accounts processed: {bank_accounts.count()}")
+            print(f"   New transactions found: {len(all_new_transactions)}")
+            print(f"   Accounts with errors: {len(refresh_errors)}")
+            
+            if refresh_errors:
+                print("   Errors encountered:")
+                for error in refresh_errors:
+                    print(f"      - {error}")
+
+            response_data = {
+                "message": f"Refresh complete. Found {len(all_new_transactions)} new transactions.",
                 "transactions": all_new_transactions,
                 "count": len(all_new_transactions)
-            })
+            }
+            
+            # Include errors in response if any occurred
+            if refresh_errors:
+                response_data["warnings"] = refresh_errors
+
+            return Response(response_data)
         
         except Exception as e:
+            print(f"CRITICAL ERROR in RefreshTransactions:")
+            print(f"   Error type: {type(e).__name__}")
+            print(f"   Error message: {str(e)}")
             import traceback
-            print(traceback.format_exc())
-            return Response({"error": str(e)}, status=400)
-
-            new_transaction_data = []
-            for new_transaction in new_transactions:
-                new_transaction_data.append(
-                    {
-                        "id": new_transaction.id,
-                        "merchant_name": new_transaction.merchant_name,
-                        "amount": str(new_transaction.amount),
-                        "date_paid": str(new_transaction.date_paid),
-                        "category": new_transaction.category,
-                        "created_at": new_transaction.created_at.isoformat(),
-                    }
-                )
-
-            return Response(
-                {"new transactions": new_transaction_data, "count": len(new_transaction_data)}
-            )
-        
-        except Exception as e:
+            traceback.print_exc()
             return Response({"error": str(e)}, status=s.HTTP_400_BAD_REQUEST)

@@ -52,7 +52,7 @@ export const UserPlaidProvider = ({ children }) => {
       didFetch = true;
     }
   }, [fetchTransactions, isSignedIn]);
-  console.log(plaidTransactions)
+  // console.log(plaidTransactions)
   // Provide the context value to children components
   return (
     <UserPlaidContext.Provider
