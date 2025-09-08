@@ -20,3 +20,9 @@ export const listTransactions = async (api) => {
     const response = await api.get("http://localhost:8000/api/plaid/list-transactions/");
     return response.data.transactions;
 };
+
+export const refreshTransactions = async (api) => {
+    console.log("Refreshing the transactions...")
+    const res = await api.get(`http://localhost:8000/api/plaid/refresh-transactions/`);
+    console.log("Refreshed transactions: ", res.data);
+}
