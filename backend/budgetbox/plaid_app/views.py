@@ -252,7 +252,6 @@ class GetTransactions(APIView):
             print(traceback.format_exc())
             return Response({"error": str(e)}, status=400)
 
-
 class Transactions(APIView):
    """
    Handle all CRUD operations for transactions
