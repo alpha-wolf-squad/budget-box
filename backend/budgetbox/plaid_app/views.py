@@ -248,9 +248,10 @@ class GetTransactions(APIView):
 class ListTransactions(APIView):
     @clerk_auth_required
     def get(self, request):
+        print("List transactions activated")
         try:
             user = User.objects.get(clerk_user_id=request.clerk_user_id)
-            transactions = user.transactions.all()[:3]  # Last 3 transactions
+            transactions = user.transactions.all()[:50]  # Last 3 transactions
 
             transaction_data = []
             for transaction in transactions:
