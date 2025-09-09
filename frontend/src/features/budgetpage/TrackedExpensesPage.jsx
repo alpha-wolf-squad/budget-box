@@ -8,11 +8,12 @@ import {
     Stack,
     Paper,
   } from "@mui/material";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useContext } from "react";
 import StreamCard from "./StreamCard.jsx";
 import AddExpenseCard from "./AddExpenseCard.jsx";
 import ExpenseCardForm from "../../forms/ExpenseCardForm.jsx";
 import useBudget from "../../services/BudgetCall.jsx";
+import { useUserEntries } from "../../context/UserEntriesContext.jsx";
 
 
 export default function TrackedExpensesPage() {
@@ -21,6 +22,8 @@ export default function TrackedExpensesPage() {
   const [showExpenseForm, setShowExpenseForm] = useState(false); // For new entries
   const [editingExpense, setEditingExpense] = useState(null); // Toggle editing expense state
   const [showEditExpenseForm, setShowEditExpenseForm] = useState(false); // For editing
+  const { entriesExpenses } = useUserEntries();
+  console.log("ENTRIES_ EXPENSES: ", entriesExpenses)
     
   const handleEditExpense = (id) => {
     const expenseToEdit = expenses.find((expense) => expense.id === id);
@@ -48,46 +51,48 @@ export default function TrackedExpensesPage() {
   const totalColor =
     net > 0 ? "success.main" : net < 0 ? "error.main" : "text.primary";
 
-  // fetches Budget from the backend
-  const { getBudget } = useBudget();
-  useEffect(() => {
-    const normalizeData = (data) => {
-      let extractedData = data.streams
+  // // fetches Budget from the backend
+  // const { getBudget } = useBudget();
+  // useEffect(() => {
+  //   const normalizeData = (data) => {
+  //     let extractedData = data.streams
 
-      if (!extractedData){
-        extractedData = [];
-      }
-       console.log("Extracted Data: ",extractedData)
-      return extractedData
-    }
+  //     if (!extractedData){
+  //       extractedData = [];
+  //     }
+  //      console.log("Extracted Data: ",extractedData)
+  //     return extractedData
+  //   }
 
-    let cancelled = false;
-    (async () => {
-      try {
-        const data = await getBudget();
-        // console.log(typeof data.streams.amount)
-        if (!cancelled) {
-          let normData = normalizeData(data);
-          // console.log("Normalized Data:", normData); // Debugging log for normalized data
-          for (const object of normData) {
-            // console.log("Processing object:", object); // Debugging log for each object
-            if (object.category === 'income') {
-              // console.log("Updating incomes with amount:", object.amount); // Debugging log for income
-              setIncomes(prev => [...prev, { ...object }]); // Update incomes useState
-              // console.log("New incomes: ", incomes)
-            } else {
-              // console.log("Updating expenses with amount:", object.amount); // Debugging log for expense
-              setExpenses(prev => [...prev, { ...object }]); // Update expenses useState
-            }
-          }
-        };
-            } catch (e) {
-        console.error("Error fetching budget:", e); // Log error if fetching fails
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+  //   let cancelled = false;
+  //   (async () => {
+  //     try {
+  //       const data = await getBudget();
+  //       // console.log(typeof data.streams.amount)
+  //       if (!cancelled) {
+  //         let normData = normalizeData(data);
+  //         // console.log("Normalized Data:", normData); // Debugging log for normalized data
+  //         for (const object of normData) {
+  //           // console.log("Processing object:", object); // Debugging log for each object
+  //           if (object.category === 'income') {
+  //             // console.log("Updating incomes with amount:", object.amount); // Debugging log for income
+  //             setIncomes(prev => [...prev, { ...object }]); // Update incomes useState
+  //             // console.log("New incomes: ", incomes)
+  //           } else {
+  //             // console.log("Updating expenses with amount:", object.amount); // Debugging log for expense
+  //             setExpenses(prev => [...prev, { ...object }]); // Update expenses useState
+  //           }
+  //         }
+  //       };
+  //           } catch (e) {
+  //       console.error("Error fetching budget:", e); // Log error if fetching fails
+  //     }
+  //   })();
+  //   return () => { cancelled = true; };
+  // }, []);
   
+
+
   return (
     <>
       {/*  summary header */}

@@ -9,6 +9,7 @@ import App from "./App.jsx";
 import { ClerkProvider } from "@clerk/clerk-react";
 import { BrowserRouter as Router } from "react-router-dom";
 import { UserPlaidProvider } from "./context/UserPlaidContext.jsx";
+import { UserEntriesProvider } from "./context/UserEntriesContext.jsx";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 // if (import.meta.env.DEV) {
@@ -23,7 +24,9 @@ createRoot(document.getElementById("root")).render(
     <Router>
       <ClerkProvider publishableKey={PUBLISHABLE_KEY}>
         <UserPlaidProvider>
+          <UserEntriesProvider>
           <App />
+          </UserEntriesProvider>
         </UserPlaidProvider>
       </ClerkProvider>
     </Router>

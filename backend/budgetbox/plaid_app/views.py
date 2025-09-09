@@ -339,7 +339,8 @@ class Transactions(APIView):
                )
            
            # NOTE: Create or get budget for transaction's month
-           transaction_date = transaction.authorized_date or transaction.date_paid
+           transaction_date = '2025-08'
+        #    transaction_date = transaction.authorized_date or transaction.date_paid
            if not transaction_date:
                return Response(
                    {"error": "Transaction has no valid date"}, 
