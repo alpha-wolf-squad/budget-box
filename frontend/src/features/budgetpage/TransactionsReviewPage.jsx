@@ -10,12 +10,10 @@ import {
 import { useState } from "react";
 import PlaidStreamCard from "./PlaidStreamCard.jsx";
 import PlaidLinkButton from "./PlaidLink.jsx";
-import {refreshTransactions} from "../../services/plaidService.jsx"
 import { useAuthenticatedApi } from "../../services/hooks.js";
 import { useUserPlaid } from "../../context/UserPlaidContext.jsx";
-// IMPORT DELETE CALL
+import { deleteTransactions, listTransactions, addTransactions } from "../../services/plaidService.jsx";
 // IMPORT POST CALL
-
 
 export default function TransactionsReviewPage() {
   const [plaidConnected, setPlaidConnected] = useState(false);
@@ -28,18 +26,23 @@ export default function TransactionsReviewPage() {
     const expenseToApprove = plaidTransactions.find((expense) => expense.id === id);
     console.log("Expense to be approved: ",expenseToApprove)
     // FINISH WITH CRUD;
-    // Add to entries DT
-    // Remove from plaid DT
+    addTransactions(api, id)
+    handleDeleteExpense(id)
   };
 
   const handleDeleteExpense = (id) => { // Needs to call 'delete' method for plaid/transactions DT
+    deleteTransactions(api, id)
     setPlaidTransactions((prev) => prev.filter((x) => x.id !== id));
-    // Remove from plaid DT
   };
 
+  const handleRefreshExpense = async () => {
+    let res = await listTransactions(api);
+    setPlaidTransactions((prev) => [...prev, ...res]);
+  }
+  
   return (
   <>
-    {plaidConnected ? ( // Make is !plaidConnected after completing the dev
+    {!plaidConnected ? ( // Make is !plaidConnected after completing the dev
       <>
         <Box
           sx={{
@@ -55,6 +58,7 @@ export default function TransactionsReviewPage() {
       </>
     ) : (
       <>
+      <Button onClick={handleRefreshExpense}>Refresh</Button>
       {/* Expenses */}
       <Box sx={{ minWidth: 0 }}>
         <Stack spacing={2}>
@@ -73,7 +77,6 @@ export default function TransactionsReviewPage() {
           )}
         </Stack>
       </Box>
-      <Button onClick={() => refreshTransactions(api)}>Refresh</Button>
       </>
     )}
   </>

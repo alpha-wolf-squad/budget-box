@@ -68,7 +68,7 @@ class TransactionApprovalSerializer(serializers.Serializer):
     description = serializers.CharField(
         max_length=100, required=False, allow_blank=True
     )
-    recurrence = serializers.BooleanField(required=False, default=False)
+    # recurrence = serializers.BooleanField(required=False, default=False)
 
     def validate_transaction_id(self, value: int) -> int:
         """Basic validation - full validation happens in view with user context"""

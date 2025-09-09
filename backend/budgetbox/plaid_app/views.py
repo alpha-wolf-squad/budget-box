@@ -325,8 +325,9 @@ class Transactions(APIView):
            # NOTE: Extract validated data
            validated_data = serializer.validated_data
            transaction_id = validated_data['transaction_id']
+           print("TRANSACTION_ID: ", transaction_id)
            description = validated_data.get('description', '')
-           recurrence = validated_data.get('recurrence', False)
+        #    recurrence = validated_data.get('recurrence', False)
            
            # NOTE: Get transaction and verify user ownership
            try:
@@ -360,7 +361,7 @@ class Transactions(APIView):
                description=description if description else transaction.merchant_name,
                amount=expense_amount,
                category=transaction.category,
-               recurrence=recurrence
+            #    recurrence=recurrence
            )
            
            return Response({
@@ -371,7 +372,7 @@ class Transactions(APIView):
                    "description": expense_stream.description,
                    "amount": str(expense_stream.amount),
                    "category": expense_stream.category,
-                   "recurrence": expense_stream.recurrence,
+                #    "recurrence": expense_stream.recurrence,
                    "budget_month": budget_date.strftime('%Y-%m')
                },
                "original_transaction": {
@@ -393,59 +394,59 @@ class Transactions(APIView):
                status=s.HTTP_400_BAD_REQUEST
            )
 
-   @clerk_auth_required
-   def put(self, request):
-       """Update a transaction"""
-       try:
-           user = User.objects.get(clerk_user_id=request.clerk_user_id)
-           transaction_id = request.data.get('id')
+#    @clerk_auth_required
+#    def put(self, request):
+#        """Update a transaction"""
+#        try:
+#            user = User.objects.get(clerk_user_id=request.clerk_user_id)
+#            transaction_id = request.data.get('id')
            
-           if not transaction_id:
-               return Response(
-                   {"error": "Transaction ID is required"}, 
-                   status=s.HTTP_400_BAD_REQUEST
-               )
+#            if not transaction_id:
+#                return Response(
+#                    {"error": "Transaction ID is required"}, 
+#                    status=s.HTTP_400_BAD_REQUEST
+#                )
            
-           # NOTE: Get transaction and verify user ownership
-           try:
-               transaction = Transaction.objects.get(id=transaction_id, user=user)
-           except Transaction.DoesNotExist:
-               return Response(
-                   {"error": "Transaction not found or access denied"}, 
-                   status=s.HTTP_404_NOT_FOUND
-               )
+#            # NOTE: Get transaction and verify user ownership
+#            try:
+#                transaction = Transaction.objects.get(id=transaction_id, user=user)
+#            except Transaction.DoesNotExist:
+#                return Response(
+#                    {"error": "Transaction not found or access denied"}, 
+#                    status=s.HTTP_404_NOT_FOUND
+#                )
            
-           # NOTE: Validate and apply updates to transaction
-           serializer = TransactionUpdateSerializer(
-               transaction, 
-               data=request.data, 
-               partial=True
-           )
+#            # NOTE: Validate and apply updates to transaction
+#            serializer = TransactionUpdateSerializer(
+#                transaction, 
+#                data=request.data, 
+#                partial=True
+#            )
            
-           if serializer.is_valid():
-               serializer.save()
+#            if serializer.is_valid():
+#                serializer.save()
                
-               response_serializer = TransactionSerializer(transaction)
-               return Response({
-                   "message": "Transaction updated successfully",
-                   "transaction": response_serializer.data
-               })
+#                response_serializer = TransactionSerializer(transaction)
+#                return Response({
+#                    "message": "Transaction updated successfully",
+#                    "transaction": response_serializer.data
+#                })
            
-           return Response(
-               {"error": serializer.errors}, 
-               status=s.HTTP_400_BAD_REQUEST
-           )
+#            return Response(
+#                {"error": serializer.errors}, 
+#                status=s.HTTP_400_BAD_REQUEST
+#            )
            
-       except User.DoesNotExist:
-           return Response(
-               {"error": "User not found"}, 
-               status=s.HTTP_404_NOT_FOUND
-           )
-       except Exception as e:
-           return Response(
-               {"error": str(e)}, 
-               status=s.HTTP_400_BAD_REQUEST
-           )
+#        except User.DoesNotExist:
+#            return Response(
+#                {"error": "User not found"}, 
+#                status=s.HTTP_404_NOT_FOUND
+#            )
+#        except Exception as e:
+#            return Response(
+#                {"error": str(e)}, 
+#                status=s.HTTP_400_BAD_REQUEST
+        #    )
 
    @clerk_auth_required
    def delete(self, request):
@@ -453,6 +454,7 @@ class Transactions(APIView):
        try:
            user = User.objects.get(clerk_user_id=request.clerk_user_id)
            transaction_id = request.data.get('id')
+           print(request.data)
            
            if not transaction_id:
                return Response(
