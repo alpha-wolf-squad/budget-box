@@ -9,14 +9,13 @@ import {
   Box,
   Divider,
   Collapse,
-  TablePagination,
 } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
+import CheckIcon from "@mui/icons-material/Check";
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useState } from "react";
 
-export default function StreamCard({
+export default function PlaidStreamCard({
   id,
   name,
   amount,
@@ -24,13 +23,35 @@ export default function StreamCard({
   category,
   date,
   type = "income",
-  onEdit,
+  onApprove,
   onDelete,
   sx,
 }) {
   const isIncome = type === "income";
   const hasDescription = !!description?.trim();
   const [open, setOpen] = useState(false);
+  const [approveLoading, setApproveLoading] = useState(false); // Separate state for approve button
+  const [deleteLoading, setDeleteLoading] = useState(false); // Separate state for delete button
+
+  const handleApprove = async () => {
+    setApproveLoading(true);
+    // console.log("APPROVE_LOADING IS SET")
+    try {
+      await onApprove?.(id); // Call the onApprove function
+    } finally {
+      setApproveLoading(false); // Reset loading state
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeleteLoading(true);
+    // console.log("DELETE_LOADING IS SET")
+    try {
+      await onDelete?.(id); // Call the onDelete function
+    } finally {
+      setDeleteLoading(false); // Reset loading state
+    }
+  };
 
   return (
     <Card
@@ -93,11 +114,7 @@ export default function StreamCard({
             })}
           </Typography>
 
-          <Typography
-            fontWeight={500}
-          >
-            {date}
-          </Typography>
+          <Typography fontWeight={500}>{date}</Typography>
         </Stack>
 
         {/* Collapsible description */}
@@ -127,10 +144,18 @@ export default function StreamCard({
 
       {/* Buttons */}
       <CardActions sx={{ justifyContent: "flex-end", pt: 0 }}>
-        <IconButton aria-label="edit" onClick={() => onEdit?.(id)}>
-          <EditIcon />
+        <IconButton
+          disabled={approveLoading || deleteLoading} // Disable if either button is loading
+          aria-label="approve"
+          onClick={handleApprove}
+        >
+          <CheckIcon />
         </IconButton>
-        <IconButton aria-label="delete" onClick={() => onDelete?.(id)}>
+        <IconButton
+          disabled={approveLoading || deleteLoading} // Disable if either button is loading
+          aria-label="delete"
+          onClick={handleDelete}
+        >
           <DeleteIcon />
         </IconButton>
       </CardActions>

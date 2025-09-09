@@ -36,7 +36,7 @@ class ExpenseStream(models.Model):
     # category defines "income" or "expense"
     category = models.CharField(max_length=100)
     # whether it's a recurring payment or not
-    recurrence = models.BooleanField(default=False, blank=True)
+    # recurrence = models.BooleanField(default=False, blank=True)
 
     def __str__(self):
         return f"{self.merchant_name}: ${self.amount}"
