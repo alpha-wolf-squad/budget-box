@@ -42,33 +42,36 @@ export default function TransactionsReviewPage() {
   
   return (
   <>
-    {!plaidConnected ? ( // Make is !plaidConnected after completing the dev
+    {plaidConnected ? ( // Make is !plaidConnected after completing the dev
       <>
         <Box
           sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            height: "100%",
-            mb: 2,
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+        height: "100%",
+        mb: 2,
           }}
         >
           <PlaidLinkButton onPlaidConnected={setPlaidConnected} />
         </Box>
       </>
-    ) : (
+        ) : (
       <>
-      <Button onClick={handleRefreshExpense}>Refresh</Button>
+      {(plaidTransactions.length < 1) ? <PlaidLinkButton onPlaidConnected={setPlaidConnected} /> : null }
       {/* Expenses */}
+      <Box sx={{ display: "flex", justifyContent: "center", mb: 2 }}>
+        <Button onClick={handleRefreshExpense}>Refresh</Button>
+      </Box>
       <Box sx={{ minWidth: 0 }}>
         <Stack spacing={2}>
           {plaidTransactions.map((tx) => 
-            <PlaidStreamCard
-              key={tx.id}
-              id={tx.id}
-              name={tx.merchant_name}
-              amount={-tx.amount}
-              category={tx.category} // Displaying the category
+        <PlaidStreamCard
+          key={tx.id}
+          id={tx.id}
+          name={tx.merchant_name}
+          amount={-tx.amount}
+          category={tx.category} // Displaying the category
               date={tx.date_paid}
               type="expense"
               onApprove={handleApproveExpense}

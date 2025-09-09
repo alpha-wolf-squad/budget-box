@@ -64,7 +64,7 @@ export default function TrackedExpensesPage() {
     let cancelled = false;
     (async () => {
       try {
-        const data = await getBudget("2025-09");
+        const data = await getBudget();
         // console.log(typeof data.streams.amount)
         if (!cancelled) {
           let normData = normalizeData(data);
