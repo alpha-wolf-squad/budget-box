@@ -11,6 +11,8 @@ import {
   InputAdornment, // Added InputAdornment import
 } from "@mui/material";
 import { useState, useEffect } from "react";
+import axios from "axios";
+import { useAuth } from "@clerk/clerk-react";
 
 export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData }) {
   const [name, setName] = useState("");
@@ -18,6 +20,8 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
   const [recurrence, setRecurrence] = useState("monthly");
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState({});
+
+  const { getToken } = useAuth();
 
   // Populate form fields with initial data when editing
   useEffect(() => {
@@ -39,7 +43,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
   const AMOUNT_W = 100;
   const RECURRENCE_W = 90;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const next = {};
     const raw = amount.trim().replace(",", ".");
     const amtNum = Number(raw);
@@ -52,14 +56,47 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
     setErrors(next);
     if (Object.keys(next).length) return;
 
-    onSubmit({
+    const localObj = {
       id: (initialData?.id || crypto?.randomUUID?.()) ?? String(Date.now()), // Keep the same ID if editing
       name: name.trim(),
       amount: Math.abs(amtNum),
       description: description.trim() || undefined,
       type: "income",
       recurrence,
-    });
+    };
+
+    let serverId = null;
+    try {
+      const token =
+        (typeof getToken === "function" ? await getToken() : null) ||
+        (window?.Clerk?.session?.getToken ? await window.Clerk.session.getToken() : null);
+
+      const payload = {
+        merchant_name: name.trim(),
+        description: description.trim() || "",
+        amount: Math.abs(amtNum), // backend forces positive for income anyway
+        recurrence,               // backend casts truthy to True
+        // date omitted: server defaults to current month
+      };
+
+      const resp = await axios.post(
+        "http://localhost:8000/api/entries/add-income-stream/",
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      serverId = resp?.data?.id ?? null;
+    } catch (err) {
+      console.error("Failed to save income to the server:", err);
+    } finally {
+      const finalObj = serverId ? { ...localObj, id: serverId } : localObj;
+      onSubmit(finalObj);
+    }
   };
 
   return (

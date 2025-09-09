@@ -1,3 +1,4 @@
+// ExpenseCardForm.jsx
 import {
   Box,
   TextField,
@@ -7,9 +8,11 @@ import {
   Card,
   CardContent,
   CardActions,
-  InputAdornment, // Added InputAdornment import
+  InputAdornment,
 } from "@mui/material";
 import { useState, useEffect } from "react";
+import axios from "axios";
+import { useAuth } from "@clerk/clerk-react";
 
 export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData }) {
   const [name, setName] = useState("");
@@ -17,6 +20,9 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
   const [category, setCategory] = useState("other"); // Default category
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
+
+  const { getToken } = useAuth();
 
   // Populate form fields with initial data when editing
   useEffect(() => {
@@ -33,32 +39,79 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
     "& .MuiInputLabel-root": { fontSize: 13 },
     "& .MuiFormHelperText-root": { fontSize: 11 },
   };
-
   const NAME_W = 100;
   const AMOUNT_W = 100;
   const CATEGORY_W = 90;
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const next = {};
     const raw = amount.trim().replace(",", ".");
     const amtNum = Number(raw);
 
     if (!raw || Number.isNaN(amtNum)) next.amount = "Valid amount is required.";
     else if (amtNum <= 0) next.amount = "Amount must be greater than 0.";
-
     if (!name.trim()) next.name = "Please enter a valid name.";
 
     setErrors(next);
     if (Object.keys(next).length) return;
 
-    onSubmit({
-      id: (initialData?.id || crypto?.randomUUID?.()) ?? String(Date.now()), // Keep the same ID if editing
+    // Prepare the local object (keeps existing logic/names)
+    const localId = (initialData?.id || crypto?.randomUUID?.()) ?? String(Date.now());
+    const localObj = {
+      id: localId,
       name: name.trim(),
       amount: -Math.abs(amtNum), // Always store as a negative value
       description: description.trim() || undefined,
       type: "expense",
-      category,
-    });
+      recurrence,
+    };
+
+    // Attempt to persist to backend (minimal addition)
+    setSubmitting(true);
+    try {
+      const token =
+        (typeof getToken === "function" ? await getToken() : null) ||
+        (window?.Clerk?.session?.getToken ? await window.Clerk.session.getToken() : null);
+
+      // Map UI fields to API payload
+      const payload = {
+        merchant_name: name.trim(),
+        description: description.trim() || "",
+        amount: -Math.abs(amtNum), // API expects expense to be negative; backend enforces anyway
+        recurrence: !!recurrence,   // backend treats truthy as recurring
+        // date omitted: backend will default to current month
+      };
+
+      const resp = await axios.post(
+        "http://localhost:8000/api/entries/add-expense-stream/",
+        payload,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+
+      // If the server returns an id, prefer it so edits map correctly
+      const serverId = resp?.data?.id;
+      const finalObj = serverId ? { ...localObj, id: serverId } : localObj;
+
+      onSubmit(finalObj);
+    } catch (err) {
+      // Surface a simple server error while preserving existing validation UI
+      const detail =
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Failed to save expense to the server.";
+      setErrors((prev) => ({ ...prev, server: detail }));
+
+      // Still call onSubmit with local object so UI remains responsive if desired.
+      // If you prefer to block on failure, comment the next line.
+      onSubmit(localObj);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -75,6 +128,12 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
           {initialData ? "Edit expense:" : "Add a new expense:"}
         </Typography>
+
+        {errors.server ? (
+          <Typography variant="body2" color="error" sx={{ mb: 1 }}>
+            {errors.server}
+          </Typography>
+        ) : null}
 
         <Box
           sx={{
@@ -162,8 +221,10 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
       </CardContent>
 
       <CardActions sx={{ justifyContent: "flex-end" }}>
-        <Button onClick={onCancel}>Cancel</Button>
-        <Button variant="contained" onClick={handleSubmit}>
+        <Button onClick={onCancel} disabled={submitting}>
+          Cancel
+        </Button>
+        <Button variant="contained" onClick={handleSubmit} disabled={submitting}>
           Save
         </Button>
       </CardActions>
