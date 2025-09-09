@@ -11,12 +11,12 @@ import {
   Collapse,
   TablePagination,
 } from "@mui/material";
-import EditIcon from "@mui/icons-material/Edit";
+import CheckIcon from '@mui/icons-material/Check';
 import DeleteIcon from "@mui/icons-material/Delete";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { useState } from "react";
 
-export default function StreamCard({
+export default function PlaidStreamCard({
   id,
   name,
   amount,
@@ -24,7 +24,7 @@ export default function StreamCard({
   category,
   date,
   type = "income",
-  onEdit,
+  onApprove,
   onDelete,
   sx,
 }) {
@@ -127,8 +127,8 @@ export default function StreamCard({
 
       {/* Buttons */}
       <CardActions sx={{ justifyContent: "flex-end", pt: 0 }}>
-        <IconButton aria-label="edit" onClick={() => onEdit?.(id)}>
-          <EditIcon />
+        <IconButton aria-label="approve" onClick={() => onApprove?.(id)}>
+          <CheckIcon />
         </IconButton>
         <IconButton aria-label="delete" onClick={() => onDelete?.(id)}>
           <DeleteIcon />
