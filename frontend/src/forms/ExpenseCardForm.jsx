@@ -23,7 +23,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
     if (initialData) {
       setName(initialData.name || "");
       setAmount(String(Math.abs(initialData.amount)) || ""); // Convert amount to positive string
-      setCategory(initialData.category || "monthly");
+      setCategory(initialData.category || "other");
       setDescription(initialData.description || "");
     }
   }, [initialData]);
@@ -133,7 +133,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
           <TextField
             label="Category"
             select
-            value={""}
+            value={category}
             onChange={(e) => setCategory(e.target.value)}
             fullWidth
             size="small"

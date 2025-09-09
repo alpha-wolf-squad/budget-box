@@ -61,6 +61,7 @@ export default function TransactionsReviewPage() {
           {plaidTransactions.map((tx) => editingExpense?.id === tx.id && showEditExpenseForm ? ( // tx is transaction
             <ReviewExpenseCardForm
             key={tx.id}
+            name={tx.merchant_name}
             sx={{ minWidth: 0 }}
             onCancel={() => {
               setShowExpenseForm(false);
@@ -80,8 +81,9 @@ export default function TransactionsReviewPage() {
               key={tx.id}
               id={tx.id}
               name={tx.merchant_name}
-              amount={tx.amount}
+              amount={-tx.amount}
               category={tx.category} // Displaying the category
+              type="expense"
               onDelete={handleDeleteExpense}
               onEdit={handleEditExpense} // Should delete from the useState and from plaid/transactions DT
             />

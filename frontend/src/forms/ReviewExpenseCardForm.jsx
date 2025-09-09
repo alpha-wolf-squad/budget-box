@@ -14,17 +14,17 @@ import { useState, useEffect } from "react";
 export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("other"); // Default category
-  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState(""); // Default category
+  const [date, setDate] = useState("");
   const [errors, setErrors] = useState({});
 
   // Populate form fields with initial data when editing
   useEffect(() => {
     if (initialData) {
-      setName(initialData.name || "");
+      setName(initialData.merchant_name || "");
       setAmount(String(Math.abs(initialData.amount)) || ""); // Convert amount to positive string
-      setCategory(initialData.category || "monthly");
-      setDescription(initialData.description || "");
+      setCategory(initialData.category || "");
+      setDate(initialData.date_paid || "");
     }
   }, [initialData]);
 
@@ -55,9 +55,9 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
       id: (initialData?.id || crypto?.randomUUID?.()) ?? String(Date.now()), // Keep the same ID if editing
       name: name.trim(),
       amount: -Math.abs(amtNum), // Always store as a negative value
-      description: description.trim() || undefined,
+      date: date.trim() || undefined,
       type: "expense",
-      category,
+      category: category,
     });
   };
 
@@ -132,22 +132,32 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
 
           <TextField
             label="Category"
-            value={category}
+            select
+            value={category} // Correctly set the value to the category state
             onChange={(e) => setCategory(e.target.value)}
             fullWidth
             size="small"
             type="text"
             sx={{ gridArea: "category", minWidth: 0, width: 1, ...COMPACT_INPUT_SX }}
-          />
+          >
+            <MenuItem value="ENTERTAINMENT">Entertainment</MenuItem>
+            <MenuItem value="FOOD_AND_DRINK">Food&Drink</MenuItem>
+            <MenuItem value="TRANSPORTATION">Transportation</MenuItem>
+            <MenuItem value="HOME_IMPROVEMENT">Home</MenuItem>
+            <MenuItem value="MEDICAL">Medical</MenuItem>
+            <MenuItem value="PERSONAL_CARE">Personal Care</MenuItem>
+            <MenuItem value="RENT_AND_UTILITIES">Utilities</MenuItem>
+            <MenuItem value="OTHER">Other</MenuItem> {/* Added 'Other' category */}
+          </TextField>
         </Box>
 
         <TextField
-          label="Description (optional)"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          multiline
-          minRows={3}
+          label="Transaction Date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
           fullWidth
+          size="small"
+          type="text"
           sx={{ mt: 2, ...COMPACT_INPUT_SX }}
         />
       </CardContent>
