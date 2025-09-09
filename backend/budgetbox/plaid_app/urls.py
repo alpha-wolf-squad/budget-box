@@ -4,8 +4,8 @@ from .views import (
     CreateLinkToken,
     ExchangePublicToken,
     GetTransactions,
-    ListTransactions,
     RefreshTransactions,
+    Transactions,
 )
 
 # api/plaid/
@@ -18,7 +18,9 @@ urlpatterns = [
         name="exchange_public_token",
     ),
     path("get-transactions/", GetTransactions.as_view(), name="get_transactions"),
-    path("list-transactions/", ListTransactions.as_view(), name="list_transactions"),
+    path(
+        "transactions/", Transactions.as_view(), name="transactions"
+    ),  # All CRUD operations
     path(
         "refresh-transactions/",
         RefreshTransactions.as_view(),
