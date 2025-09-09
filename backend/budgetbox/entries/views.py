@@ -113,7 +113,7 @@ class AddIncomeStream(APIView):
             description=description,
             amount=amount,
             category="income",
-            recurrence=bool(request.data.get("recurrence", False)),
+            # recurrence=bool(request.data.get("recurrence", False)),
         )
         return Response(ExpanseStream_serializer(stream).data, status=s.HTTP_201_CREATED)
 
@@ -146,7 +146,7 @@ class AddExpenseStream(APIView):
             description=description,
             amount=amount,
             category="expense",
-            recurrence=bool(request.data.get("recurrence", False)),
+            # recurrence=bool(request.data.get("recurrence", False)),
         )
         return Response(ExpanseStream_serializer(stream).data, status=s.HTTP_201_CREATED)
 
@@ -174,7 +174,7 @@ class UpdateExpenseStream(APIView):
             return Response({"detail": "Forbidden"}, status=s.HTTP_403_FORBIDDEN)
 
         # Update only provided fields
-        updatable = ["merchant_name", "description", "amount", "category", "recurrence"]
+        updatable = ["merchant_name", "description", "amount", "category"]
         for field in updatable:
             if field in request.data:
                 if field == "amount":
@@ -183,8 +183,8 @@ class UpdateExpenseStream(APIView):
                     except Exception:
                         return Response({"detail": "Invalid amount"}, status=s.HTTP_400_BAD_REQUEST)
                     setattr(stream, field, val)
-                elif field == "recurrence":
-                    setattr(stream, field, bool(request.data["recurrence"]))
+                # elif field == "recurrence":
+                #     setattr(stream, field, bool(request.data["recurrence"]))
                 else:
                     setattr(stream, field, request.data[field])
 

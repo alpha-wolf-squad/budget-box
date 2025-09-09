@@ -65,13 +65,16 @@ const PlaidLinkButton = ({ onPlaidConnected }) => {
   }, [token, ready, open]);
 
   return (
-    <Button
-      onClick={handleCreateLinkToken} // Trigger token creation on button click
-      disabled={loading || (!ready && token)} // Disable button if loading or not ready
-      variant="contained"
-    >
-      {loading ? "Loading..." : "Connect a bank account"} // Button text based on loading state
-    </Button>
+    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+      <Button
+        sx={{ textAlign: 'center' }}
+        onClick={handleCreateLinkToken} // Trigger token creation on button click
+        disabled={loading || (!ready && token)} // Disable button if loading or not ready
+        variant="contained"
+      >
+        {loading ? "Loading..." : "Connect a bank account"}
+      </Button>
+    </div>
   );
 };
 
