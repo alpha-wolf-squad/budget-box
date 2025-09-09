@@ -1,3 +1,4 @@
+//TrackedExpensesPage.jsx
 import {
     Typography,
     Button,
@@ -52,7 +53,11 @@ export default function TrackedExpensesPage() {
   useEffect(() => {
     const normalizeData = (data) => {
       let extractedData = data.streams
-      // console.log(typeof extractedData.amount)
+
+      if (!extractedData){
+        extractedData = [];
+      }
+       console.log("Extracted Data: ",extractedData)
       return extractedData
     }
 
