@@ -1,0 +1,11 @@
+change load up page to be center
+
+center page will have total cash flow with income and expenses and drop down to filter by category
+
+home page will display instruction text
+
+fix income stream editing
+
+** change category in database to income/expense or flow
+** add category in table
+** add category dropdown in tracked expenses to filter by category

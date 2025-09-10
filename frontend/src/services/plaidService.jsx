@@ -22,9 +22,25 @@ export const listTransactions = async (api) => {
     return response.data.transactions;
 };
 
-export const addTransactions = async (api, transaction_id) => {
-    const response = await api.post("http://localhost:8000/api/plaid/transactions/", {transaction_id});
-    return response.data.transactions;
+// export const addTransactions = async (api, transaction_id) => {
+//     const response = await api.post("http://localhost:8000/api/plaid/transactions/", {data: {transaction_id}});
+//     return response.data.transactions;
+// };
+export const addTransactions = async (api, transaction_id, description = '') => {
+    const payload = {
+        transaction_id: parseInt(transaction_id, 10), // Ensure it's an integer
+        description: description
+    };
+    
+    console.log("Sending payload:", payload); // Debug logging
+    
+    try {
+        const response = await api.post("http://localhost:8000/api/plaid/transactions/", payload);
+        return response.data; // Remove .transactions since your view doesn't return that structure
+    } catch (error) {
+        console.error("API Error:", error.response?.data);
+        throw error;
+    }
 };
 
 export const deleteTransactions = async (api, id) => {
