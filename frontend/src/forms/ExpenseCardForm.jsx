@@ -1,4 +1,4 @@
-// ExpenseCardForm.jsx
+// ExpenseCardForm.jsx - Fixed version
 import {
   Box,
   TextField,
@@ -14,34 +14,39 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "@clerk/clerk-react";
 
-export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData }) {
+export default function ExpenseCardForm({
+  onCancel,
+  onSubmit,
+  sx,
+  initialData,
+}) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("other"); // Default category
+  const [category, setCategory] = useState("other_expense");
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
   const { getToken } = useAuth();
 
-  // Populate form fields with initial data when editing
   useEffect(() => {
     if (initialData) {
-      setName(initialData.name || "");
-      setAmount(String(Math.abs(initialData.amount)) || ""); // Convert amount to positive string
-      setCategory(initialData.category || "other");
+      setName(initialData.merchant_name || initialData.name || "");
+      setAmount(String(Math.abs(initialData.amount)) || "");
+      setCategory(initialData.category || "other_expense");
       setDescription(initialData.description || "");
     }
   }, [initialData]);
 
   const COMPACT_INPUT_SX = {
-    "& .MuiInputBase-input": { fontSize: 14, paddingTop: "6px", paddingBottom: "6px" },
+    "& .MuiInputBase-input": {
+      fontSize: 14,
+      paddingTop: "6px",
+      paddingBottom: "6px",
+    },
     "& .MuiInputLabel-root": { fontSize: 13 },
     "& .MuiFormHelperText-root": { fontSize: 11 },
   };
-  const NAME_W = 100;
-  const AMOUNT_W = 100;
-  const CATEGORY_W = 90;
 
   const handleSubmit = async () => {
     const next = {};
@@ -55,60 +60,63 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
     setErrors(next);
     if (Object.keys(next).length) return;
 
-    // Prepare the local object (keeps existing logic/names)
-    const localId = (initialData?.id || crypto?.randomUUID?.()) ?? String(Date.now());
-    const localObj = {
-      id: localId,
-      name: name.trim(),
-      amount: -Math.abs(amtNum), // Always store as a negative value
-      description: description.trim() || undefined,
-      type: "expense",
-      recurrence,
-    };
-
-    // Attempt to persist to backend (minimal addition)
     setSubmitting(true);
     try {
-      const token =
-        (typeof getToken === "function" ? await getToken() : null) ||
-        (window?.Clerk?.session?.getToken ? await window.Clerk.session.getToken() : null);
+      const token = await getToken();
 
-      // Map UI fields to API payload
       const payload = {
         merchant_name: name.trim(),
         description: description.trim() || "",
-        amount: -Math.abs(amtNum), // API expects expense to be negative; backend enforces anyway
-        recurrence: !!recurrence,   // backend treats truthy as recurring
+        amount: -Math.abs(amtNum), // Backend will make it negative
+        category: category,
         // date omitted: backend will default to current month
       };
 
-      const resp = await axios.post(
-        "http://localhost:8000/api/entries/add-expense-stream/",
-        payload,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      // Use update endpoint if editing existing expense
+      let resp;
+      if (initialData?.id) {
+        resp = await axios.put(
+          "http://localhost:8000/api/entries/partial-expense-stream/",
+          { ...payload, id: initialData.id },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
           },
-        }
-      );
+        );
+      } else {
+        resp = await axios.post(
+          "http://localhost:8000/api/entries/expense-stream/",
+          payload,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+      }
 
-      // If the server returns an id, prefer it so edits map correctly
-      const serverId = resp?.data?.id;
-      const finalObj = serverId ? { ...localObj, id: serverId } : localObj;
+      // Map server response back to frontend format
+      const serverData = resp.data;
+      const finalObj = {
+        id: serverData.id,
+        name: serverData.merchant_name,
+        merchant_name: serverData.merchant_name,
+        amount: serverData.amount,
+        description: serverData.description,
+        category: serverData.category,
+        type: "expense",
+      };
 
       onSubmit(finalObj);
     } catch (err) {
-      // Surface a simple server error while preserving existing validation UI
       const detail =
         err?.response?.data?.detail ||
         err?.message ||
         "Failed to save expense to the server.";
       setErrors((prev) => ({ ...prev, server: detail }));
-
-      // Still call onSubmit with local object so UI remains responsive if desired.
-      // If you prefer to block on failure, comment the next line.
-      onSubmit(localObj);
     } finally {
       setSubmitting(false);
     }
@@ -129,11 +137,11 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
           {initialData ? "Edit expense:" : "Add a new expense:"}
         </Typography>
 
-        {errors.server ? (
+        {errors.server && (
           <Typography variant="body2" color="error" sx={{ mb: 1 }}>
             {errors.server}
           </Typography>
-        ) : null}
+        )}
 
         <Box
           sx={{
@@ -144,7 +152,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
             minWidth: 0,
             gridTemplateColumns: {
               xs: "1fr",
-              md: `${NAME_W}px ${AMOUNT_W}px ${CATEGORY_W}px`,
+              md: "100px 100px 90px",
             },
             gridTemplateAreas: {
               xs: `"name" "amount" "category"`,
@@ -169,7 +177,8 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
             onChange={(e) => {
               let v = e.target.value.replace(/[^\d.,]/g, "");
               const parts = v.split(/[.,]/);
-              if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("");
+              if (parts.length > 2)
+                v = parts[0] + "." + parts.slice(1).join("");
               setAmount(v);
             }}
             error={!!errors.amount}
@@ -177,10 +186,17 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
             type="text"
             size="small"
             fullWidth
-            sx={{ gridArea: "amount", minWidth: 0, width: 1, ...COMPACT_INPUT_SX }}
+            sx={{
+              gridArea: "amount",
+              minWidth: 0,
+              width: 1,
+              ...COMPACT_INPUT_SX,
+            }}
             slotProps={{
               input: {
-                startAdornment: <InputAdornment position="start">−</InputAdornment>,
+                startAdornment: (
+                  <InputAdornment position="start">−</InputAdornment>
+                ),
               },
               htmlInput: {
                 inputMode: "decimal",
@@ -196,16 +212,21 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
             onChange={(e) => setCategory(e.target.value)}
             fullWidth
             size="small"
-            sx={{ gridArea: "category", minWidth: 0, width: 1, ...COMPACT_INPUT_SX }}
+            sx={{
+              gridArea: "category",
+              minWidth: 0,
+              width: 1,
+              ...COMPACT_INPUT_SX,
+            }}
           >
-            <MenuItem value="entertainment">Entertainment</MenuItem>
-            <MenuItem value="food_and_drink">Food&Drink</MenuItem>
-            <MenuItem value="transportation">Transportation</MenuItem>
-            <MenuItem value="home_improvement">Home</MenuItem>
-            <MenuItem value="medical">Medical</MenuItem>
-            <MenuItem value="personal_care">Personal Care</MenuItem>
-            <MenuItem value="rent_and_utilities">Utilities</MenuItem>
-            <MenuItem value="other">Other</MenuItem> {/* Added 'Other' category */}
+            <MenuItem value="entertainment_expense">Entertainment</MenuItem>
+            <MenuItem value="food_and_drink_expense">Food&Drink</MenuItem>
+            <MenuItem value="transportation_expense">Transportation</MenuItem>
+            <MenuItem value="home_improvement_expense">Home</MenuItem>
+            <MenuItem value="medical_expense">Medical</MenuItem>
+            <MenuItem value="personal_care_expense">Personal Care</MenuItem>
+            <MenuItem value="rent_and_utilities_expense">Utilities</MenuItem>
+            <MenuItem value="other_expense">Other</MenuItem>
           </TextField>
         </Box>
 
@@ -224,8 +245,12 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
         <Button onClick={onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={submitting}>
-          Save
+        <Button
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={submitting}
+        >
+          {submitting ? "Saving..." : "Save"}
         </Button>
       </CardActions>
     </Card>

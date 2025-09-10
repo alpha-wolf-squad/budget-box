@@ -191,9 +191,9 @@ export default function BudgetPage() {
                 <StreamCard
                   key={income.id}
                   id={income.id}
-                  name={income.name}
+                  name={income.merchant_name}
                   amount={income.amount}
-                  recurrence={income.recurrence}
+                  category={income.category}
                   description={income.description}
                   type="income"
                   onDelete={handleDeleteIncome}
@@ -260,9 +260,9 @@ export default function BudgetPage() {
                 <StreamCard
                   key={expense.id}
                   id={expense.id}
-                  name={expense.name}
+                  name={expense.merchant_name}
                   amount={expense.amount}
-                  recurrence={expense.recurrence}
+                  category={expense.category}
                   description={expense.description}
                   type="expense"
                   onDelete={handleDeleteExpense}

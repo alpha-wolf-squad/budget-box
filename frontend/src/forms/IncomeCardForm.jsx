@@ -14,10 +14,10 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "@clerk/clerk-react";
 
-export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData }) {
+export default function IncomeCardForm({ onCancel, onSubmit, sx, initialData }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [recurrence, setRecurrence] = useState("monthly");
+  const [category, setCategory] = useState("monthly");
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState({});
 
@@ -28,7 +28,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
     if (initialData) {
       setName(initialData.name || "");
       setAmount(String(Math.abs(initialData.amount)) || ""); // Convert amount to positive string
-      setRecurrence(initialData.recurrence || "monthly");
+      setCategory(initialData.category || "monthly");
       setDescription(initialData.description || "");
     }
   }, [initialData]);
@@ -41,7 +41,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
 
   const NAME_W = 100;
   const AMOUNT_W = 100;
-  const RECURRENCE_W = 90;
+  const CATEGORY_W = 90;
 
   const handleSubmit = async () => {
     const next = {};
@@ -62,7 +62,7 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
       amount: Math.abs(amtNum),
       description: description.trim() || undefined,
       type: "income",
-      recurrence,
+      category,
     };
 
     let serverId = null;
@@ -75,12 +75,12 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
         merchant_name: name.trim(),
         description: description.trim() || "",
         amount: Math.abs(amtNum), // backend forces positive for income anyway
-        recurrence,               // backend casts truthy to True
+        category: category,               // backend casts truthy to True
         // date omitted: server defaults to current month
       };
 
       const resp = await axios.post(
-        "http://localhost:8000/api/entries/add-income-stream/",
+        "http://localhost:8000/api/entries/income-stream/",
         payload,
         {
           headers: {
@@ -123,11 +123,11 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
             minWidth: 0,
             gridTemplateColumns: {
               xs: "1fr",
-              md: `${NAME_W}px ${AMOUNT_W}px ${RECURRENCE_W}px`,
+              md: `${NAME_W}px ${AMOUNT_W}px ${CATEGORY_W}px`,
             },
             gridTemplateAreas: {
-              xs: `"name" "amount" "recurrence"`,
-              md: `"name amount recurrence"`,
+              xs: `"name" "amount" "category"`,
+              md: `"name amount category"`,
             },
           }}
         >
@@ -169,17 +169,16 @@ export default function ExpenseCardForm({ onCancel, onSubmit, sx, initialData })
           />
 
           <TextField
-            label="Recurrence"
+            label="Category"
             select
-            value={recurrence}
-            onChange={(e) => setRecurrence(e.target.value)}
+            value={category}
+            onChange={(e) => setCategory(e.target.value)}
             fullWidth
             size="small"
-            sx={{ gridArea: "recurrence", minWidth: 0, width: 1, ...COMPACT_INPUT_SX }}
+            sx={{ gridArea: "category", minWidth: 0, width: 1, ...COMPACT_INPUT_SX }}
           >
-            <MenuItem value="weekly">Weekly</MenuItem>
-            <MenuItem value="monthly">Monthly</MenuItem>
-            <MenuItem value="yearly">Annual</MenuItem>
+            <MenuItem value="work_income">Work</MenuItem>
+            <MenuItem value="other_income">Other</MenuItem>
           </TextField>
         </Box>
 

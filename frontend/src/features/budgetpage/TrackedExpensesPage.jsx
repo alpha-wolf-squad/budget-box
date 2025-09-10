@@ -178,9 +178,9 @@ export default function TrackedExpensesPage() {
               <StreamCard
                 key={expense.id}
                 id={expense.id}
-                name={expense.name}
+                name={expense.merchant_name}
                 amount={expense.amount}
-                recurrence={expense.recurrence}
+                category={expense.category}
                 description={expense.description}
                 type="expense"
                 onDelete={handleDeleteExpense}
