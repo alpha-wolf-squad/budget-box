@@ -13,7 +13,9 @@ import AddIncomeCard from "./AddIncomeCard.jsx";
 import IncomeCardForm from "../../forms/IncomeCardForm.jsx";
 import AddExpenseCard from "./AddExpenseCard.jsx";
 import ExpenseCardForm from "../../forms/ExpenseCardForm.jsx";
-import useBudget from "../../services/BudgetCall.jsx"
+import useBudget from "../../services/BudgetCall.jsx";
+import { useAuthenticatedApi } from "../../services/hooks.js";
+import { deleteExpenseStream } from "../../services/entriesService.jsx";
 
 export default function BudgetPage() {
   const [incomes, setIncomes] = useState([]);
@@ -24,7 +26,7 @@ export default function BudgetPage() {
   const [showEditExpenseForm, setShowEditExpenseForm] = useState(false); // For editing
   const [editingIncome, setEditingIncome] = useState(false); // Toggle editing income state
   const [showEditIncomeForm, setShowEditIncomeForm] = useState(false); // For editing
-
+  const { api } = useAuthenticatedApi();
 
   const handleEditIncome = (id) => {
     const incomeToEdit = incomes.find((income) => income.id === id);
@@ -33,6 +35,7 @@ export default function BudgetPage() {
   };
 
   const handleDeleteIncome = (id) => {
+    deleteExpenseStream(api, id);
     setIncomes((prev) => prev.filter((x) => x.id !== id));
   };
 
@@ -43,35 +46,34 @@ export default function BudgetPage() {
   };
 
   const handleDeleteExpense = (id) => {
+    deleteExpenseStream(api, id);
     setExpenses((prev) => prev.filter((x) => x.id !== id));
   };
-  
-  
+
   const incomeTotal = useMemo(
     () => incomes.reduce((s, x) => s + parseFloat(x.amount), 0),
-    [incomes]
+    [incomes],
   );
   const expenseTotal = useMemo(
     () => expenses.reduce((s, x) => s + parseFloat(x.amount), 0),
-    [expenses]
+    [expenses],
   );
   const net = useMemo(
     () => incomeTotal + expenseTotal,
-    [incomeTotal, expenseTotal]
+    [incomeTotal, expenseTotal],
   );
 
   const totalColor =
     net > 0 ? "success.main" : net < 0 ? "error.main" : "text.primary";
 
-
   // fetches Budget from the backend
   const { getBudget } = useBudget();
   useEffect(() => {
     const normalizeData = (data) => {
-      let extractedData = data.streams
+      let extractedData = data.streams;
       // console.log(typeof extractedData.amount)
-      return extractedData
-    }
+      return extractedData;
+    };
 
     let cancelled = false;
     (async () => {
@@ -83,23 +85,24 @@ export default function BudgetPage() {
           // console.log("Normalized Data:", normData); // Debugging log for normalized data
           for (const object of normData) {
             // console.log("Processing object:", object); // Debugging log for each object
-            if (object.category === 'income') {
+            if (object.category === "income") {
               // console.log("Updating incomes with amount:", object.amount); // Debugging log for income
-              setIncomes(prev => [...prev, { ...object }]); // Update incomes useState
+              setIncomes((prev) => [...prev, { ...object }]); // Update incomes useState
               // console.log("New incomes: ", incomes)
             } else {
               // console.log("Updating expenses with amount:", object.amount); // Debugging log for expense
-              setExpenses(prev => [...prev, { ...object }]); // Update expenses useState
+              setExpenses((prev) => [...prev, { ...object }]); // Update expenses useState
             }
           }
-        };
-            } catch (e) {
+        }
+      } catch (e) {
         console.error("Error fetching budget:", e); // Log error if fetching fails
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
-
 
   return (
     <>
@@ -131,7 +134,7 @@ export default function BudgetPage() {
             </Typography>
           </Stack>
           <Divider />
-          <Typography sx={{fontWeight: 600, color: totalColor}}>
+          <Typography sx={{ fontWeight: 600, color: totalColor }}>
             Total: $
             {net.toLocaleString(undefined, { minimumFractionDigits: 2 })}
           </Typography>
@@ -141,7 +144,7 @@ export default function BudgetPage() {
       <Box
         sx={{
           display: { xs: "block", md: "grid" },
-          gridTemplateColumns: { md: "1fr 1px 1fr" }, 
+          gridTemplateColumns: { md: "1fr 1px 1fr" },
           columnGap: { md: 6 },
           alignItems: "start",
         }}
@@ -162,7 +165,10 @@ export default function BudgetPage() {
                   setShowIncomeForm(false);
                 }}
                 onSubmit={(newIncome) => {
-                  setIncomes((prev) => [...prev, { ...newIncome, id: Date.now() }]);
+                  setIncomes((prev) => [
+                    ...prev,
+                    { ...newIncome, id: Date.now() },
+                  ]);
                   setShowIncomeForm(false);
                 }}
               />
@@ -180,7 +186,9 @@ export default function BudgetPage() {
                   }}
                   onSubmit={(updatedIncome) => {
                     setIncomes((prev) =>
-                      prev.map((e) => (e.id === updatedIncome.id ? updatedIncome : e))
+                      prev.map((e) =>
+                        e.id === updatedIncome.id ? updatedIncome : e,
+                      ),
                     );
                     setShowIncomeForm(false);
                     setEditingIncome(null);
@@ -199,7 +207,7 @@ export default function BudgetPage() {
                   onDelete={handleDeleteIncome}
                   onEdit={handleEditIncome}
                 />
-              )
+              ),
             )}
           </Stack>
         </Box>
@@ -231,7 +239,10 @@ export default function BudgetPage() {
                   setShowExpenseForm(false);
                 }}
                 onSubmit={(newExpense) => {
-                  setExpenses((prev) => [...prev, { ...newExpense, id: Date.now() }]);
+                  setExpenses((prev) => [
+                    ...prev,
+                    { ...newExpense, id: Date.now() },
+                  ]);
                   setShowExpenseForm(false);
                 }}
               />
@@ -249,7 +260,9 @@ export default function BudgetPage() {
                   }}
                   onSubmit={(updatedExpense) => {
                     setExpenses((prev) =>
-                      prev.map((e) => (e.id === updatedExpense.id ? updatedExpense : e))
+                      prev.map((e) =>
+                        e.id === updatedExpense.id ? updatedExpense : e,
+                      ),
                     );
                     setShowExpenseForm(false);
                     setEditingExpense(null);
@@ -268,7 +281,7 @@ export default function BudgetPage() {
                   onDelete={handleDeleteExpense}
                   onEdit={handleEditExpense}
                 />
-              )
+              ),
             )}
           </Stack>
         </Box>

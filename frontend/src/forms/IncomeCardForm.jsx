@@ -14,19 +14,25 @@ import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "@clerk/clerk-react";
 
-export default function IncomeCardForm({ onCancel, onSubmit, sx, initialData }) {
+export default function IncomeCardForm({
+  onCancel,
+  onSubmit,
+  sx,
+  initialData,
+}) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [category, setCategory] = useState("monthly");
   const [description, setDescription] = useState("");
   const [errors, setErrors] = useState({});
+  const [submitting, setSubmitting] = useState(false);
 
   const { getToken } = useAuth();
 
   // Populate form fields with initial data when editing
   useEffect(() => {
     if (initialData) {
-      setName(initialData.name || "");
+      setName(initialData.merchant_name || "");
       setAmount(String(Math.abs(initialData.amount)) || ""); // Convert amount to positive string
       setCategory(initialData.category || "monthly");
       setDescription(initialData.description || "");
@@ -34,7 +40,11 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx, initialData }) 
   }, [initialData]);
 
   const COMPACT_INPUT_SX = {
-    "& .MuiInputBase-input": { fontSize: 14, paddingTop: "6px", paddingBottom: "6px" },
+    "& .MuiInputBase-input": {
+      fontSize: 14,
+      paddingTop: "6px",
+      paddingBottom: "6px",
+    },
     "& .MuiInputLabel-root": { fontSize: 13 },
     "& .MuiFormHelperText-root": { fontSize: 11 },
   };
@@ -58,7 +68,7 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx, initialData }) 
 
     const localObj = {
       id: (initialData?.id || crypto?.randomUUID?.()) ?? String(Date.now()), // Keep the same ID if editing
-      name: name.trim(),
+      merchant_name: name.trim(),
       amount: Math.abs(amtNum),
       description: description.trim() || undefined,
       type: "income",
@@ -69,33 +79,64 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx, initialData }) 
     try {
       const token =
         (typeof getToken === "function" ? await getToken() : null) ||
-        (window?.Clerk?.session?.getToken ? await window.Clerk.session.getToken() : null);
+        (window?.Clerk?.session?.getToken
+          ? await window.Clerk.session.getToken()
+          : null);
 
       const payload = {
         merchant_name: name.trim(),
         description: description.trim() || "",
         amount: Math.abs(amtNum), // backend forces positive for income anyway
-        category: category,               // backend casts truthy to True
+        category: category, // backend casts truthy to True
         // date omitted: server defaults to current month
       };
 
-      const resp = await axios.post(
-        "http://localhost:8000/api/entries/income-stream/",
-        payload,
-        {
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      let resp;
+      if (initialData?.id) {
+        resp = await axios.put(
+          "http://localhost:8000/api/entries/partial-expense-stream/",
+          { ...payload, id: initialData.id },
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
           },
-        }
-      );
+        );
+      } else {
+        resp = await axios.post(
+          "http://localhost:8000/api/entries/income-stream/",
+          payload,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+          },
+        );
+      }
 
-      serverId = resp?.data?.id ?? null;
-    } catch (err) {
-      console.error("Failed to save income to the server:", err);
-    } finally {
-      const finalObj = serverId ? { ...localObj, id: serverId } : localObj;
+      // Map server response back to frontend format
+      const serverData = resp.data;
+      const finalObj = {
+        id: serverData.id,
+        name: serverData.merchant_name,
+        merchant_name: serverData.merchant_name,
+        amount: serverData.amount,
+        description: serverData.description,
+        category: serverData.category,
+        type: "income",
+      };
+
       onSubmit(finalObj);
+    } catch (err) {
+      const detail =
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Failed to save income to the server.";
+      setErrors((prev) => ({ ...prev, server: detail }));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -111,7 +152,9 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx, initialData }) 
     >
       <CardContent sx={{ minWidth: 0 }}>
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 700 }}>
-          {initialData ? "Edit recurring expense:" : "Add a new recurring expense:"}
+          {initialData
+            ? "Edit recurring income:"
+            : "Add a new recurring income:"}
         </Typography>
 
         <Box
@@ -148,7 +191,8 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx, initialData }) 
             onChange={(e) => {
               let v = e.target.value.replace(/[^\d.,]/g, "");
               const parts = v.split(/[.,]/);
-              if (parts.length > 2) v = parts[0] + "." + parts.slice(1).join("");
+              if (parts.length > 2)
+                v = parts[0] + "." + parts.slice(1).join("");
               setAmount(v);
             }}
             error={!!errors.amount}
@@ -156,10 +200,17 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx, initialData }) 
             type="text"
             size="small"
             fullWidth
-            sx={{ gridArea: "amount", minWidth: 0, width: 1, ...COMPACT_INPUT_SX }}
+            sx={{
+              gridArea: "amount",
+              minWidth: 0,
+              width: 1,
+              ...COMPACT_INPUT_SX,
+            }}
             slotProps={{
               input: {
-                startAdornment: <InputAdornment position="start">−</InputAdornment>,
+                startAdornment: (
+                  <InputAdornment position="start">−</InputAdornment>
+                ),
               },
               htmlInput: {
                 inputMode: "decimal",
@@ -175,7 +226,12 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx, initialData }) 
             onChange={(e) => setCategory(e.target.value)}
             fullWidth
             size="small"
-            sx={{ gridArea: "category", minWidth: 0, width: 1, ...COMPACT_INPUT_SX }}
+            sx={{
+              gridArea: "category",
+              minWidth: 0,
+              width: 1,
+              ...COMPACT_INPUT_SX,
+            }}
           >
             <MenuItem value="work_income">Work</MenuItem>
             <MenuItem value="other_income">Other</MenuItem>
@@ -195,7 +251,11 @@ export default function IncomeCardForm({ onCancel, onSubmit, sx, initialData }) 
 
       <CardActions sx={{ justifyContent: "flex-end" }}>
         <Button onClick={onCancel}>Cancel</Button>
-        <Button variant="contained" onClick={handleSubmit}>
+        <Button
+          disabled={submitting}
+          variant="contained"
+          onClick={handleSubmit}
+        >
           Save
         </Button>
       </CardActions>

@@ -1,9 +1,13 @@
 from datetime import datetime, timedelta  # Import datetime and timedelta
 
 import plaid
+from budgetbox_project.decorators import clerk_auth_required
+from budgetbox_project.settings import PLAID_CLIENT_ID, PLAID_SANDBOX_KEY
+from clerk_app.models import BudgetBoxUser
 from django.contrib.auth import get_user_model
 from django.shortcuts import render
 from django.utils import timezone
+from entries.models import Budget, ExpenseStream
 from plaid.api import plaid_api
 from plaid.model.accounts_get_request import AccountsGetRequest
 from plaid.model.country_code import CountryCode
@@ -21,11 +25,6 @@ from rest_framework import status as s
 from rest_framework import viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
-from budgetbox_project.decorators import clerk_auth_required
-from budgetbox_project.settings import PLAID_CLIENT_ID, PLAID_SANDBOX_KEY
-from clerk_app.models import BudgetBoxUser
-from entries.models import Budget, ExpenseStream
 
 from .models import (BankAccount, Transaction, create_bank_account_from_plaid,
                      create_transaction_from_plaid,

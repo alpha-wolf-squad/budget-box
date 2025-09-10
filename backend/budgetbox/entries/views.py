@@ -4,16 +4,15 @@ from decimal import Decimal
 
 from django.contrib.auth import get_user_model
 from django.utils.timezone import now
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from rest_framework import status as s
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 # FIX: correct import path for the decorator module
 from budgetbox_project.decorators import clerk_auth_required
 
 from .models import Budget, ExpenseStream
 from .serializers import Budget_serializer, ExpanseStream_serializer
-
 
 User = get_user_model()
 
@@ -56,8 +55,7 @@ def _get_or_create_user(clerk_user_id: str) -> User:
 
 def _get_or_create_budget(user: User, month_date: date) -> Budget:
     return Budget.objects.get_or_create(
-        budget_box_user=user,
-        date=_first_of_month(month_date)
+        budget_box_user=user, date=_first_of_month(month_date)
     )[0]
 
 
@@ -77,12 +75,17 @@ class GetBudget(APIView):
         budget = _get_or_create_budget(user, month_date)
         streams = budget.expenses.all().order_by("id")
 
-        print(f"Budget ID: {budget.id}, Number of Streams: {streams.count()}")  # Debugging statement
+        print(
+            f"Budget ID: {budget.id}, Number of Streams: {streams.count()}"
+        )  # Debugging statement
 
-        return Response({
-            "budget": Budget_serializer(budget).data,
-            "streams": ExpanseStream_serializer(streams, many=True).data,
-        }, status=s.HTTP_200_OK)
+        return Response(
+            {
+                "budget": Budget_serializer(budget).data,
+                "streams": ExpanseStream_serializer(streams, many=True).data,
+            },
+            status=s.HTTP_200_OK,
+        )
 
 
 class AddIncomeStream(APIView):
@@ -115,7 +118,56 @@ class AddIncomeStream(APIView):
             category="income",
             # recurrence=bool(request.data.get("recurrence", False)),
         )
-        return Response(ExpanseStream_serializer(stream).data, status=s.HTTP_201_CREATED)
+        return Response(
+            ExpanseStream_serializer(stream).data, status=s.HTTP_201_CREATED
+        )
+
+    @clerk_auth_required
+    def put(self, request):
+        """
+        Payload must include: id
+        Optional fields to update: merchant_name, description, amount, category, recurrence
+        """
+        clerk_user_id = request.clerk_user_id
+        user = _get_or_create_user(clerk_user_id)
+
+        stream_id = request.data.get("id")
+        print(stream_id)
+        if not stream_id:
+            return Response(
+                {"detail": "Missing 'id' for stream"}, status=s.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            stream = ExpenseStream.objects.select_related(
+                "budget", "budget__budget_box_user"
+            ).get(id=stream_id)
+        except ExpenseStream.DoesNotExist:
+            return Response({"detail": "Stream not found"}, status=s.HTTP_404_NOT_FOUND)
+
+        if stream.budget.budget_box_user_id != user.id:
+            return Response({"detail": "Forbidden"}, status=s.HTTP_403_FORBIDDEN)
+
+        # Update only provided fields
+        updatable = ["merchant_name", "description", "amount", "category"]
+        print(updatable)
+        for field in updatable:
+            if field in request.data:
+                if field == "amount":
+                    try:
+                        val = Decimal(str(request.data["amount"]))
+                    except Exception:
+                        return Response(
+                            {"detail": "Invalid amount"}, status=s.HTTP_400_BAD_REQUEST
+                        )
+                    setattr(stream, field, val)
+                # elif field == "recurrence":
+                #     setattr(stream, field, bool(request.data["recurrence"]))
+                else:
+                    setattr(stream, field, request.data[field])
+
+        stream.save(update_fields=updatable)
+        return Response(ExpanseStream_serializer(stream).data, status=s.HTTP_200_OK)
 
 
 class AddExpenseStream(APIView):
@@ -148,7 +200,9 @@ class AddExpenseStream(APIView):
             category="expense",
             # recurrence=bool(request.data.get("recurrence", False)),
         )
-        return Response(ExpanseStream_serializer(stream).data, status=s.HTTP_201_CREATED)
+        return Response(
+            ExpanseStream_serializer(stream).data, status=s.HTTP_201_CREATED
+        )
 
 
 class UpdateExpenseStream(APIView):
@@ -163,10 +217,14 @@ class UpdateExpenseStream(APIView):
 
         stream_id = request.data.get("id")
         if not stream_id:
-            return Response({"detail": "Missing 'id' for stream"}, status=s.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "Missing 'id' for stream"}, status=s.HTTP_400_BAD_REQUEST
+            )
 
         try:
-            stream = ExpenseStream.objects.select_related("budget", "budget__budget_box_user").get(id=stream_id)
+            stream = ExpenseStream.objects.select_related(
+                "budget", "budget__budget_box_user"
+            ).get(id=stream_id)
         except ExpenseStream.DoesNotExist:
             return Response({"detail": "Stream not found"}, status=s.HTTP_404_NOT_FOUND)
 
@@ -181,7 +239,9 @@ class UpdateExpenseStream(APIView):
                     try:
                         val = Decimal(str(request.data["amount"]))
                     except Exception:
-                        return Response({"detail": "Invalid amount"}, status=s.HTTP_400_BAD_REQUEST)
+                        return Response(
+                            {"detail": "Invalid amount"}, status=s.HTTP_400_BAD_REQUEST
+                        )
                     setattr(stream, field, val)
                 # elif field == "recurrence":
                 #     setattr(stream, field, bool(request.data["recurrence"]))
@@ -191,3 +251,46 @@ class UpdateExpenseStream(APIView):
         stream.save(update_fields=updatable)
         return Response(ExpanseStream_serializer(stream).data, status=s.HTTP_200_OK)
 
+    @clerk_auth_required
+    def delete(self, request):
+        """Delete an expense stream"""
+        clerk_user_id = request.clerk_user_id
+        user = _get_or_create_user(clerk_user_id)
+
+        stream_id = request.data.get("id")
+        print(f"Attempting to delete stream ID: {stream_id}")
+
+        if not stream_id:
+            return Response(
+                {"detail": "Missing 'id' for stream"}, status=s.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            stream = ExpenseStream.objects.select_related(
+                "budget", "budget__budget_box_user"
+            ).get(id=stream_id)
+        except ExpenseStream.DoesNotExist:
+            return Response({"detail": "Stream not found"}, status=s.HTTP_404_NOT_FOUND)
+
+        # Verify user ownership
+        if stream.budget.budget_box_user_id != user.id:
+            return Response({"detail": "Forbidden"}, status=s.HTTP_403_FORBIDDEN)
+
+        # Store stream info before deletion for response
+        stream_info = {
+            "id": stream.id,
+            "merchant_name": stream.merchant_name,
+            "description": stream.description,
+            "amount": str(stream.amount),
+            "category": stream.category,
+        }
+
+        stream.delete()
+
+        return Response(
+            {
+                "message": "Expense stream deleted successfully",
+                "deleted_stream": stream_info,
+            },
+            status=s.HTTP_200_OK,
+        )
